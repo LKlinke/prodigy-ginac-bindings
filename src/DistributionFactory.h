@@ -5,12 +5,12 @@
 #ifndef PRODIGY_DISTRIBUTIONFACTORY_H
 #define PRODIGY_DISTRIBUTIONFACTORY_H
 
-#include "ParametricDist.h"
+#include "Dist.h"
 
 class DistributionFactory {
 
 public:
-    static ParametricDist geometric(const symbol& x, const ex& p);
+    static Dist geometric(const symbol& x, const ex& p);
 };
 
 

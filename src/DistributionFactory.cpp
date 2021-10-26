@@ -6,7 +6,7 @@
 
 using namespace GiNaC;
 
-ParametricDist DistributionFactory::geometric(const symbol& x, const ex &p) {
+Dist DistributionFactory::geometric(const symbol& x, const ex &p) {
 
     std::vector<symbol> params;
     // Analyse arguments
@@ -17,11 +17,11 @@ ParametricDist DistributionFactory::geometric(const symbol& x, const ex &p) {
     }
     else if(p.info(info_flags::symbol)) {
         // todo test properly if x and p are same symbol
-        const auto& p_as_symbol = ex_to<symbol>(p);
-        if(x.is_equal(p_as_symbol)) {
+        const auto& pAsSymbol = ex_to<symbol>(p);
+        if(x.get_name() == pAsSymbol.get_name()) {
             throw std::invalid_argument("parameter and variable must be different");
         }
-        params.push_back(p_as_symbol);
+        params.push_back(pAsSymbol);
     }
     else {
         // p is neither rational nor a symbol - error
@@ -29,6 +29,6 @@ ParametricDist DistributionFactory::geometric(const symbol& x, const ex &p) {
     }
 
     ex gf = (1-p) / (1 - p*x);
-    return ParametricDist(gf, params);
+    return Dist {gf, params};
 
 }

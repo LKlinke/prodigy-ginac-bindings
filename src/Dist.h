@@ -2,8 +2,8 @@
 // Created by Tobias Winkler on 22.10.21.
 //
 
-#ifndef PRODIGY_PARAMETRICDIST_H
-#define PRODIGY_PARAMETRICDIST_H
+#ifndef PRODIGY_DIST_H
+#define PRODIGY_DIST_H
 
 
 #include <ginac/ginac.h>
@@ -20,26 +20,30 @@ using namespace GiNaC;
  * - The distribution knows its exact set of parameters. Everything that is no parameter is considered a variable.
  *   Variables and parameter are strictly separated.
  */
-class ParametricDist {
+class Dist {
+
+private:
+    ex _gf;
+    std::vector<symbol> _params;
 
 public:
 
     /* Constructors */
 
-    ParametricDist() = default;
-
-    /*
-     * copy constructor
-     */
-    ParametricDist(const ParametricDist& other) {
-        _gf = other._gf;
-        params = other.params;
-    };
+    Dist() = default;
+//
+//    /*
+//     * copy constructor
+//     */
+//    Dist(const Dist& other) {
+//        _gf = other._gf;
+//        params = other.params;
+//    };
 
     template<typename Container>
-    ParametricDist(const ex &gf, const Container &params) {
+    Dist(const ex &gf, const Container &params) {
         this->_gf = gf;
-        this->params = std::vector<symbol>(std::begin(params), std::end(params));
+        this->_params = std::vector<symbol>(std::begin(params), std::end(params));
     }
 
     /* public member functions */
@@ -91,24 +95,34 @@ public:
     bool hasParameter(const std::string& p) const;
     bool hasParameter(const symbol& p) const;
 
+    /*
+     * update distribution according to assignment v := e
+     */
+    Dist update(const symbol& v, const ex& e) const;
+    Dist update(const std::string& v, const std::string& e) const;
+
+
     /* operators */
 
-    friend std::ostream& operator<<(std::ostream& os, const ParametricDist& dist) {
+    friend std::ostream& operator<<(std::ostream& os, const Dist& dist) {
         os << dist._gf;
         return os;
     };
 
-    ParametricDist operator*(const numeric& rhs) const { return ParametricDist(_gf * rhs, params); }
-    friend ParametricDist operator*(const numeric& lhs, const ParametricDist& rhs) { return rhs * lhs; }
+    bool operator==(const Dist& rhs) const;
 
-    ParametricDist operator*(const std::string& rhs) const;
-    friend ParametricDist operator*(const std::string& lhs, const ParametricDist& rhs) { return rhs * lhs; }
+    Dist operator*(const numeric& rhs) const { return Dist(_gf * rhs, _params); }
+    friend Dist operator*(const numeric& lhs, const Dist& rhs) { return rhs * lhs; }
 
+    Dist operator*(const std::string& rhs) const;
+    friend Dist operator*(const std::string& lhs, const Dist& rhs) { return rhs * lhs; }
 
 private:
-    ex _gf;
-    std::vector<symbol> params;
+    Dist incrAssgn(const symbol& v, const ex& term) const;
+    symtab makeSymtab() const;
+
+
 
 };
 
-#endif //PRODIGY_PARAMETRICDIST_H
+#endif //PRODIGY_DIST_H

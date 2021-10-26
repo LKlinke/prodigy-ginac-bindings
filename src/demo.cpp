@@ -9,7 +9,7 @@ int main() {
     symbol x("x");
     symbol p("p");
 
-    ParametricDist dist = DistributionFactory::geometric(x, p);
+    Dist dist = DistributionFactory::geometric(x, p);
 
     std::cout << dist << std::endl;
     std::cout << "Total mass " << dist.mass() << std::endl;
@@ -19,7 +19,7 @@ int main() {
     /* example 2 */
 
     symbol y("y");
-    ParametricDist dist2 = DistributionFactory::geometric(y, numeric("1/3"));
+    Dist dist2 = DistributionFactory::geometric(y, numeric("1/3"));
 
     std::cout << dist2 << std::endl;
     std::cout << "Total mass " << dist2.mass() << std::endl;
