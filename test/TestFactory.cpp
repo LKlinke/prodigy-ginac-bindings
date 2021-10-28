@@ -5,11 +5,17 @@
 #include "gtest/gtest.h"
 #include <DistributionFactory.h>
 
-TEST(DistributionFactory, geometric) {
-    EXPECT_NO_THROW(DistributionFactory::geometric(symbol("x"), symbol("p")));
-    EXPECT_NO_THROW(DistributionFactory::geometric(symbol("x"), numeric(1,2)));
+using namespace std;
 
-    // EXPECT_ANY_THROW(DistributionFactory::geometric(symbol("x"), symbol("x"))); // todo
-    EXPECT_ANY_THROW(DistributionFactory::geometric(symbol("x"), 0.5)); // cannot use float as param
-    EXPECT_ANY_THROW(DistributionFactory::geometric(symbol("x"), numeric(3,2))); // param must be in correct interval
+TEST(DistributionFactory, geometric) {
+    Dist::resetSymbolCache();
+    EXPECT_NO_THROW(DistributionFactory::geometric("x", "1/2"));
+    EXPECT_NO_THROW(DistributionFactory::geometric("x", "p"));
+
+    EXPECT_ANY_THROW(DistributionFactory::geometric("z", "x")); // x was used as variable before
+    EXPECT_ANY_THROW(DistributionFactory::geometric("y", "1-p")); // param must be numeric or single symbol
+    EXPECT_ANY_THROW(DistributionFactory::geometric("p", "p")); // var and param cannot be the same
+    EXPECT_ANY_THROW(DistributionFactory::geometric("123", "r")); // var must be a symbol
+    EXPECT_ANY_THROW(DistributionFactory::geometric("2*c", "r")); // var must be a symbol
+    EXPECT_THROW(DistributionFactory::geometric("#01-3==", "r"), GiNaC::parse_error);
 }

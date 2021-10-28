@@ -6,253 +6,235 @@
 #include "Dist.h"
 #include "macros.h"
 
-/*
- * Visitor for collecting all symbols in a GiNaC::ex
- */
-class gather_symbols_visitor : public visitor, public symbol::visitor {
-    std::vector<symbol> symbols; // will contain the result
-    std::vector<symbol> exclude; // symbols to exclude in result
-    void visit(const symbol& s) override {
-        // do not insert copies
-        if(std::find(symbols.begin(), symbols.end(), s) == symbols.end()) {
-            // do not insert explicitly excluded symbols
-            if(exclude.empty() || std::find(exclude.begin(), exclude.end(), s) == exclude.end()) {
-                symbols.push_back(s);
-            }
-        }
-    }
-public:
-    const std::vector<symbol>& getResult() const {
-        return symbols;
-    }
-    void setExclude(const std::vector<symbol>& toExclude) {
-        exclude = toExclude;
-    }
-};
+using namespace GiNaC;
 
-/* Public interface of Dist */
+/* static (global) portion of Dist */
 
-ex Dist::mass() const {
-    ex res = _gf;
-    for(const auto& v : getVariables()) {
-        res = res.subs(v == 1);
-    }
+// initialize static variables of class Dist
+Dist::str2sym Dist::_params;
+Dist::str2sym Dist::_vars;
+
+Dist::str2sym Dist::paramsAndVars() {
+    str2sym res = _params;
+    res.insert(_vars.begin(), _vars.end());
     return res;
 }
 
-ex Dist::E(const symbol &var) const {
-    if (hasParameter(var)) {
-        throw std::invalid_argument("the given symbol is considered a parameter, not a variable");
-    }
-    ex res = _gf;
-    for(const auto& v : getVariables()) {
-        if(v != var) {
-            res = res.subs(v == 1);
-        }
-    }
-    return res.diff(var).subs(var == 1).normal();
+bool Dist::isSymbKnown(const symbol &s) {
+    return _params.count(s.get_name()) > 0 || _vars.count(s.get_name()) > 0;
 }
 
-ex Dist::E(const std::string &var) const {
-    if (hasParameter(var)) {
-        throw std::invalid_argument("the given symbol is considered a parameter, not a variable");
-    }
-    try {
-        symbol x = getVariableByName(var);
-        return E(x);
-    } catch (std::invalid_argument&) {
-        // given variable is trivial, so expected value is 0
-        return ex(0);
-    }
+bool Dist::isSymbKnown(const std::string &s) {
+    return  _params.count(s) > 0 || _vars.count(s) > 0;
 }
 
-std::vector<symbol> Dist::getVariables() const {
-    std::vector<symbol> res;
-    for(auto it = _gf.preorder_begin(); it != _gf.preorder_end(); ++it) {
+bool Dist::isKnownAsVar(const symbol &s) {
+    return _vars.count(s.get_name()) > 0;
+}
+
+bool Dist::isKnownAsVar(const std::string &s) {
+    return _vars.count(s) > 0;
+}
+
+bool Dist::isKnownAsParam(const symbol &s) {
+    return _params.count(s.get_name()) > 0;
+}
+
+bool Dist::isKnownAsParam(const std::string  &s) {
+    return _params.count(s) > 0;
+}
+
+// new symbols will be created for unknown names, but not registered
+ex Dist::parseWithKnownSymbs(const std::string &s) {
+    parser pars(paramsAndVars());
+    ex parsed = pars(s); // might throw parse error
+    return parsed;
+}
+
+void Dist::registerAllUnknownSymbsAsVars(const ex &e) {
+    for(auto it = e.preorder_begin(); it != e.preorder_end(); ++it) {
         if(is_a<symbol>(*it)) {
             const auto& s = ex_to<symbol>(*it);
-            if (std::find(res.begin(), res.end(), s) == res.end()) {
-                if (std::find(_params.begin(), _params.end(), s) == _params.end()) {
-                    res.push_back(s);
-                }
+            if(!isSymbKnown(s)) {
+                _vars[s.get_name()] = s;
             }
         }
+    }
+}
+
+void Dist::registerAllUnknownSymbsAsParams(const ex &e) {
+    for(auto it = e.preorder_begin(); it != e.preorder_end(); ++it) {
+        if(is_a<symbol>(*it)) {
+            const auto& s = ex_to<symbol>(*it);
+            if(!isSymbKnown(s)) {
+                _params[s.get_name()] = s;
+            }
+        }
+    }
+}
+
+void Dist::registerAsVar(const symbol &p) {
+    assert(!isKnownAsParam(p));
+    _vars[p.get_name()] = p;
+}
+
+void Dist::registerAsParam(const symbol &p) {
+    assert(!isKnownAsVar(p));
+    _params[p.get_name()] = p;
+}
+
+
+/* public interface of dist */
+
+Dist::Dist(const std::string &gfStr, const std::string &pStr) {
+    ex p = parseWithKnownSymbs(pStr); // might throw parse error
+    PRECOND(is_a<symbol>(p), "given parameter is not a symbol");
+    const auto& pSym = ex_to<symbol>(p);
+    PRECOND(!isKnownAsVar(pSym), "given parameter was registered as variable before");
+    registerAsParam(pSym);
+    ex gf = parseWithKnownSymbs(gfStr); // might throw parse error
+    // todo if parseWithKnownSymbs(gfStr) throws then global state was modified without creating object successfully
+    // todo issue warning if gf does not have p as subexpression
+    registerAllUnknownSymbsAsVars(gf);
+    _gf = gf;
+}
+
+Dist::Dist(const std::string &gfStr) {
+    ex gf = parseWithKnownSymbs(gfStr); // might throw parse error
+    registerAllUnknownSymbsAsVars(gf);
+    _gf = gf;
+}
+
+ex Dist::mass() const {
+    ex res {_gf};
+    for(const auto& v : _vars) {
+        res = res.subs(v.second == 1);
     }
     return res;
 }
 
-symbol Dist::getVariableByName(const std::string& v) const {
-    std::vector<symbol> vars(getVariables());
-    for(const auto& s : vars) {
-        if(s.get_name() == v)
-            return s;
+Dist Dist::marginal(const std::string& x) const {
+    PRECOND(!isKnownAsParam(x), "given symbol is considered a parameter");
+    ex res {_gf};
+    for(const auto& v : _vars) {
+        if(v.first != x) {
+            res = res.subs(v.second == 1);
+        }
     }
-    throw std::invalid_argument("gf does not contain this variable");
+    return Dist {res};
 }
 
-bool Dist::hasNonTrivialVariable(const symbol & s) const {
-    std::vector<symbol> vars(getVariables());
-    if(std::find(vars.begin(), vars.end(), s) != vars.end()) {
-        return true;
+ex Dist::E(const std::string &x) const {
+    PRECOND(!isKnownAsParam(x), "given symbol is considered a parameter");
+    if(isKnownAsVar(x)) {
+        Dist marg = marginal(x);
+        ex res {marg._gf};
+        const auto& xSym = ex_to<symbol>(_vars.at(x));
+        return res.diff(xSym).subs(xSym == 1);
     }
-    return false;
-}
-
-bool Dist::hasNonTrivialVariable(const std::string & s) const {
-    try {
-        getVariableByName(s);
-        return true;
-    } catch (std::invalid_argument&) {
-        return false;
-    }
-}
-
-symbol Dist::getParameterByName(const std::string &v) const {
-    for(const auto& s : _params) {
-        if(s.get_name() == v)
-            return s;
-    }
-    throw std::invalid_argument("given symbol is no parameter");
-}
-
-bool Dist::hasParameter(const std::string &p) const {
-    try {
-        getParameterByName(p);
-        return true;
-    } catch (std::invalid_argument&) {
-        return false;
+    else {
+        // x is some string, neither a known param nor a known var
+        parser pars;
+        ex parsed = pars(x); // might throw parser error
+        if(is_a<symbol>(parsed)) {
+            // x is a symbol, interpret as trivial var
+            return 0;
+        }
+        // expected value for expressions other than symbols not implemented
+        throw prodigy::not_implemented_error();
     }
 }
 
-bool Dist::hasParameter(const symbol& p) const {
-    if(std::find(_params.begin(), _params.end(), p) != _params.end()) {
-        return true;
-    }
-    return false;
+Dist Dist::update(const std::string &x, const std::string &e) const {
+    PRECOND(!isKnownAsParam(x), "lhs of update may not be a parameter");
+    ex xExp = parseWithKnownSymbs(x); // might throw parse error
+    ex eExp = parseWithKnownSymbs(e);
+    PRECOND(is_a<symbol>(xExp), "lhs of update must be a symbol");
+    const auto& xSym = ex_to<symbol>(xExp);
+    PRECOND(eExp.info(info_flags::polynomial), "only polynomial arithmetic is supported in updates");
+    return _update(xSym, eExp); // might throw errors
 }
 
-Dist Dist::update(const std::string &v, const std::string &e) const {
-    symtab tab = makeSymtab();
-    parser pars(tab); // pass symtab of this distribution to parser so that it links symbols correctly
-    ex parsed = pars(e);
-    symbol vsymb;
-    if(tab.find(v) != tab.end()) {
-        // v is an existing symbol
-        vsymb = ex_to<symbol>(tab[v]);
-    } else {
-        vsymb = symbol(v);
-    }
-    return update(vsymb, parsed);
-}
-
-
-Dist Dist::update(const symbol &v, const ex &e) const {
+Dist Dist::_update(const symbol &x, const ex &e) const {
     /*
-     * algorithm for evaluating given assignment v = term_1 + ... + term_n :
+     * algorithm for evaluating given assignment x = e = term_1 + ... + term_n :
      *
      * 1) tmp = 0
      * 2) tmp += term_1
      *    ...
      *    tmp += term_n
-     * 3) v = tmp
+     * 3) x = tmp
      *
      */
-    PRECOND(!hasParameter(v), "parameters cannot be updated");
-    PRECOND(e.info(info_flags::polynomial), "only polynomial arithmetic is supported in updates");
     ex pol = e.expand();
     Dist res {*this};
     // 1) tmp = 0
     symbol tmp;
     // 2) tmp += term_1 ... tmp += term_n
     if(is_a<numeric>(pol) || is_a<symbol>(pol) || is_a<mul>(pol)) {
-        // e.g. pol = 1 || pol = x || pol = 2*y
-        res = res.incrAssgn(tmp, pol);
+        // eg pol = 1 || pol = x || pol = 2*y
+        res = res._incrAssgn(tmp, pol);
     } else {
         assert(is_a<add>(pol));
-        // e.g. pol = 1 + x
+        // eg pol = 1 + x
         for(const auto& term : pol) {
-            res = res.incrAssgn(tmp, term);
+            res = res._incrAssgn(tmp, term);
         }
     }
-    // 3) v = tmp
-    res._gf = res._gf.subs(v == 1);
-    res._gf = res._gf.subs(tmp == v);
+    // 3) x = tmp
+    res._gf = res._gf.subs(x == 1);
+    res._gf = res._gf.subs(tmp == x);
+    // consider x a variable from now on
+    registerAsVar(x);
     return res;
 }
 
+Dist Dist::filterLess(const std::string &x, const std::string &e) const {
+    PRECOND(!isKnownAsParam(x), "given variable is parameter");
+    parser parse;
+    ex eExp = parse(e);
+    PRECOND(eExp.info(info_flags::nonnegint), "given expression must be non-neg int");
+    int order = ex_to<numeric>(eExp).to_int() ;
+    PRECOND(isKnownAsVar(x), "given variable is not known");
+    // todo one might accept unknown vars as well
+    const auto& xExp = _vars.at(x);
+    ex series = _gf.series(xExp, order);
+    return Dist {series_to_poly(series)};
+}
+
+Dist Dist::_incrAssgn(const symbol &x, const ex &term) const {
+    ex res {_gf};
+    if(term.info(info_flags::nonnegint)) {
+        // v += k, with k a non-negative int
+        res *= pow(x, term);
+    } else if(term.info(info_flags::symbol)) {
+        // v += y, with y a variable
+        res = res.subs(term == x * term);
+    } else {
+        throw prodigy::not_implemented_error{};
+    }
+    return Dist {res};
+}
 
 
 /* operators */
 
-bool Dist::operator==(const Dist &rhs) const {
-    return _gf == rhs._gf && _params == rhs._params;
+std::ostream& operator<<(std::ostream &os, const Dist &dist) {
+    os << dist._gf;
+    return os;
 }
 
-
-Dist Dist::operator*(const std::string& rhs) const {
-    try {
-        // try to convert the given string to a numeric
-        numeric scalar(rhs.c_str());
-        return *this * scalar;
-    } catch (std::exception& e) {
-        // could not convert to numeric, try to convert to expression
-        parser pars;
-        ex parsed = pars(rhs);
-        if (parsed.info(info_flags::symbol)) {
-            // we have to decide if we interpret the symbol as a variable or a parameter
-            if(hasParameter(rhs)) {
-                return Dist {parsed * _gf, _params};
-            }
-            if(hasNonTrivialVariable(rhs)) {
-                return Dist {parsed * _gf, _params};
-            }
-            // neither a parameter nor a non-trivial variable - interpret as parameter by convention
-            Dist res(*this);
-            symbol newParam = symbol(rhs);
-            res._params.push_back(newParam); // add the new parameter
-            res._gf = newParam * res._gf;
-            return res;
-        } else {
-            // only expressions that are a symbol are currently allowed
-            throw prodigy::not_implemented_error();
-        }
-    } catch (parse_error& e) {
-        throw std::invalid_argument("cannot interpret given string as number or expression");
-    }
+bool operator==(const Dist &lhs, const Dist &rhs) {
+    return lhs._gf == rhs._gf;
 }
 
-/* private member functions */
-
-Dist Dist::incrAssgn(const symbol &v, const ex &term) const {
-    Dist res {*this};
-    // v += k, with k a non-negative int
-    if(term.info(info_flags::nonnegint)) {
-        res._gf *= pow(v, term);
-    }
-    // v += y, with y a variable
-    else if(term.info(info_flags::symbol)) {
-        res._gf = res._gf.subs(term == v * term);
-    }
-    else {
-        throw prodigy::not_implemented_error{};
-    }
-    return res;
+Dist operator*(const Dist &lhs, const std::string &rhs) {
+    ex parsed = Dist::parseWithKnownSymbs(rhs); // might throw parser error
+    // todo error if parsed contained known variables
+    // parsed contains just unknown symbs and known params
+    // no error from now on
+    Dist::registerAllUnknownSymbsAsParams(parsed);
+    return Dist {parsed * lhs._gf};
 }
-
-symtab Dist::makeSymtab() const {
-    symtab res;
-    for(auto it = _gf.preorder_begin(); it != _gf.preorder_end(); ++it) {
-        if(is_a<symbol>(*it)) {
-            const auto& s = ex_to<symbol>(*it);
-            res[s.get_name()] = s;
-        }
-    }
-    for(const auto& p : _params) {
-        res[p.get_name()] = p;
-    }
-    return res;
-}
-
-
 
 

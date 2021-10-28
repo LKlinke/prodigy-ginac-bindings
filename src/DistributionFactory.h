@@ -10,7 +10,8 @@
 class DistributionFactory {
 
 public:
-    static Dist geometric(const symbol& x, const ex& p);
+    //static Dist geometric(const symbol& x, const ex& p);
+    static Dist geometric(const std::string& x, const std::string& p);
 };
 
 

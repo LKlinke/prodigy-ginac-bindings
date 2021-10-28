@@ -11,6 +11,8 @@ namespace prodigy {
 
     class not_implemented_error : std::exception {};
 
+    class bad_input_error : std::exception {};
+
 }
 
 #endif //PRODIGY_EXCEPTIONS_H

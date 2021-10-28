@@ -2,33 +2,25 @@
 // Created by Tobias Winkler on 22.10.21.
 //
 
+#include <sstream>
 #include "DistributionFactory.h"
 
 using namespace GiNaC;
 
-Dist DistributionFactory::geometric(const symbol& x, const ex &p) {
-
-    std::vector<symbol> params;
-    // Analyse arguments
-    if(p.info(info_flags::rational)) {
-        if(!(0 <= p && p < 1)) {
-            throw std::invalid_argument("rational parameter of geom distribution must be in [0,1)");
-        }
-    }
-    else if(p.info(info_flags::symbol)) {
-        // todo test properly if x and p are same symbol
-        const auto& pAsSymbol = ex_to<symbol>(p);
-        if(x.get_name() == pAsSymbol.get_name()) {
-            throw std::invalid_argument("parameter and variable must be different");
-        }
-        params.push_back(pAsSymbol);
+Dist DistributionFactory::geometric(const std::string &x, const std::string &p) {
+    PRECOND(!Dist::isKnownAsParam(x), "given variable is a parameter");
+    parser parse;
+    ex xExp = parse(x);
+    PRECOND(is_a<symbol>(xExp), "variable of geom distr must be a symbol");
+    std::ostringstream ss;
+    ss << "( 1 - (" << p << ") ) / (1 - (" << x << ") * (" << p << "))";
+    ex pExp = parse(p);
+    if(is_a<symbol>(pExp)) {
+        return Dist {ss.str(), p};
+    } else if(is_a<numeric>(pExp)){
+        return Dist {ss.str()};
     }
     else {
-        // p is neither rational nor a symbol - error
-        throw std::invalid_argument("parameter of geom distribution must be a rational number or a symbol");
+        PRECOND(false, "parameter of geom distr must be a number or a symbol");
     }
-
-    ex gf = (1-p) / (1 - p*x);
-    return Dist {gf, params};
-
 }
