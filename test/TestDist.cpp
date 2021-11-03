@@ -6,6 +6,7 @@
 #include "gtest/gtest.h"
 
 using namespace std;
+using namespace prodigy;
 using Fac = DistributionFactory;
 
 TEST(Dist, mass) {
@@ -45,7 +46,7 @@ TEST(Dist, update) {
 TEST(Dist, iid) {
     Dist::resetSymbolCache();
     Dist  dist = Dist {"1/2*x + 1/2*x^2"} * Dist {"y^2"};
-    cout << dist.updateIidSampling("res", "x", "y").marginal("res") << endl;
+    cout << dist.updateIid("res", Fac::geometric("T", "1/3"), "y").marginal("res") << endl;
 }
 
 TEST(Dist, filter) {

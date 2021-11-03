@@ -6,6 +6,7 @@
 #include <DistributionFactory.h>
 
 using namespace std;
+using namespace prodigy;
 
 TEST(DistributionFactory, geometric) {
     Dist::resetSymbolCache();

@@ -7,6 +7,7 @@
 #include "DistributionFactory.h"
 
 using namespace std;
+using namespace prodigy;
 
 TEST(EquivalenceCheck, geometric) {
     Dist l0, l1, l2, l3, l4, l5, l6, l7;
@@ -86,7 +87,7 @@ TEST(EquivalenceCheck, geometricSum) {
      */
     // l0 = DistributionFactory::geometric("x", "p") * DistributionFactory::geometric("c", "q");
     l0 = Dist {"1/(1 - p*x)", "p"} * Dist {"1/ (1 - q*c)", "q"};
-    l1 = l0.updateIidSampling("tmp", DistributionFactory::geometric("TMP", "1/2"), "x");
+    l1 = l0.updateIid("tmp", DistributionFactory::geometric("TMP", "1/2"), "x");
     l2 = l1.update("c", "c + tmp");
     l3 = l2.update("tmp", "0");
     l4 = l3.update("x", "0");
@@ -109,7 +110,7 @@ TEST(EquivalenceCheck, geometricSum) {
     l0 = Dist {"1/(1 - p*x)", "p"} * Dist {"1/ (1 - q*c)", "q"};
     l1 = l0.filterGreater("x", "0");
     l2 = "1/2" * l1.update("x", "x - 1") + "1/2" * l1.update("c", "c + 1");
-    l3 = l2.updateIidSampling("tmp", DistributionFactory::geometric("TMP", "1/2"), "x");
+    l3 = l2.updateIid("tmp", DistributionFactory::geometric("TMP", "1/2"), "x");
     l4 = l3.update("c", "c + tmp");
     l5 = l4.update("tmp", "0");
     l6 = l5.update("x", "0");
