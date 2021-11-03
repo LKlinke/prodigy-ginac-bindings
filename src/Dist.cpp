@@ -288,6 +288,7 @@ Dist Dist::_incrAssgn(const symbol &x, const ex &term) const {
     return Dist {res};
 }
 
+// this is not linear probably
 Dist Dist::updateIidSampling(const std::string &x, const std::string &y, const std::string &z) const {
     PRECOND(!isKnownAsParam(x) && !isKnownAsParam(y) && !isKnownAsParam(z), "given symbol is a parameter");
     PRECOND(areIndependent(y, z) == prodigy::Result::YES, "arguments of iid must be independent");
@@ -319,7 +320,7 @@ Dist Dist::updateIidSampling(const std::string &x, const Dist& y, const std::str
     if(!isKnownAsVar(x)) {
         registerAsVar(symbol(x));
     }
-    // first marginalize x away in this
+    // first marginalize x away in *this
     ex res = _gf.subs(_vars[x] == 1);
     // ySubs will be gf of y with (single) var replaced by x
     // do this by simply substituting all known vars for x
@@ -329,7 +330,7 @@ Dist Dist::updateIidSampling(const std::string &x, const Dist& y, const std::str
         ySubs = ySubs.subs(v.second == _vars[x]);
     }
     // do the actual substitution
-    res = res.subs(_vars[z] == ySubs);
+    res = res.subs(_vars[z] == _vars[z] * ySubs);
     return Dist {res};
 }
 
