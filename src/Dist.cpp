@@ -3,6 +3,7 @@
 //
 
 #include <algorithm>
+#include <numeric>
 #include "Dist.h"
 #include "macros.h"
 
@@ -83,6 +84,15 @@ void Dist::registerAsParam(const symbol &p) {
     _params[p.get_name()] = p;
 }
 
+void Dist::deregister(const std::string &s) {
+    if(isKnownAsParam(s)) {
+        _params.erase(s);
+    }
+    if(isKnownAsVar(s)) {
+        _vars.erase(s);
+    }
+}
+
 
 /* public interface of dist */
 
@@ -105,12 +115,20 @@ Dist::Dist(const std::string &gfStr) {
     _gf = gf;
 }
 
+const ex &Dist::gf() const {
+    return _gf;
+}
+
 ex Dist::mass() const {
     ex res {_gf};
     for(const auto& v : _vars) {
         res = res.subs(v.second == 1);
     }
     return res;
+}
+
+Dist Dist::normalize() const {
+    return Dist {_gf / mass()};
 }
 
 Dist Dist::marginal(const std::string& x) const {
@@ -123,6 +141,33 @@ Dist Dist::marginal(const std::string& x) const {
     }
     return Dist {res};
 }
+
+Dist Dist::marginal(std::initializer_list<std::string> vars) const {
+    for(const auto& v : vars) {
+        PRECOND(!isKnownAsParam(v), "given symbol is considered a parameter");
+    }
+    ex res {_gf};
+    for(const auto& v : _vars) {
+        if(std::find(vars.begin(), vars.end(), v.first) == vars.end()) {
+            res = res.subs(v.second == 1);
+        }
+    }
+    return Dist {res};
+}
+
+prodigy::Result Dist::areIndependent(const std::string &x, const std::string &y) const {
+    PRECOND(!isKnownAsParam(x) && !isKnownAsParam(y), "given symbol is considered a parameter");
+    // todo think about normalization
+    Dist mx = marginal(x).normalize();
+    Dist my = marginal(y).normalize();
+    Dist mxy = marginal({x, y}).normalize();
+    if(mx * my == mxy) {
+        return prodigy::Result::YES;
+    } else {
+        return prodigy::Result::UNKNOWN;
+    }
+}
+
 
 ex Dist::E(const std::string &x) const {
     PRECOND(!isKnownAsParam(x), "given symbol is considered a parameter");
@@ -189,8 +234,109 @@ Dist Dist::_update(const symbol &x, const ex &e) const {
     return res;
 }
 
+Dist Dist::_incrAssgn(const symbol &x, const ex &term) const {
+    ex res {_gf};
+    if(term.info(info_flags::nonnegint)) {
+        // x += k, with k a non-negative int
+        res *= pow(x, term);
+    } else if(term.info(info_flags::negint)) {
+        // x += k, with k a neg int
+        res *= pow(x, term);
+        // todo make a check if x >= k with prob 1
+    } else if(term.info(info_flags::symbol)) {
+            // x += y, with y a variable
+            res = res.subs(term == x * term);
+    } else if(is_a<mul>(term)) {
+        throw prodigy::not_implemented_error {};
+        // todo the following does not work more than one f_1 is an inf support variable
+        // x += f_1 * ... * f_n, all f_i either non-neg int or variable
+        // algorithm:
+        // tmp = 1
+        // tmp *= f_1
+        // ...
+        // tmp *= f_n
+        // x += tmp
+        // tmp = 0
+        const std::string TMP_NAME = "TMP_SYMB_FOR_MUL";
+        symbol tmp(TMP_NAME);
+        // temporarily register symbol as variable, this is expected by public interface of Dist
+        assert(!isSymbKnown(TMP_NAME));
+        Dist::registerAsVar(tmp);
+        res *= tmp;
+        for(const auto& f : term) {
+            if(f.info(info_flags::nonnegint)) {
+                res = res.subs(tmp == pow(tmp, f));
+            } else if(f.info(info_flags::symbol)) {
+                const auto& fSym = ex_to<symbol>(f);
+                Dist tmpDist {res};  // wrap in Dist to access "areIndependent"
+                if(tmpDist.areIndependent(TMP_NAME, fSym.get_name()) == prodigy::Result::YES) {
+                    // this line implements "tmp *= f"
+                    res = res.subs(tmp == tmpDist.marginal(fSym.get_name()).gf().subs(fSym == tmp));
+                }
+                else {
+                    throw prodigy::not_implemented_error{};
+                }
+            }
+        }
+        // this line implements x += tmp; tmp = 0
+        res = res.subs(tmp == x);
+        // deregister temporary symbol tmp
+        Dist::deregister(TMP_NAME);
+    } else {
+        throw prodigy::not_implemented_error{};
+    }
+    return Dist {res};
+}
+
+Dist Dist::updateIidSampling(const std::string &x, const std::string &y, const std::string &z) const {
+    PRECOND(!isKnownAsParam(x) && !isKnownAsParam(y) && !isKnownAsParam(z), "given symbol is a parameter");
+    PRECOND(areIndependent(y, z) == prodigy::Result::YES, "arguments of iid must be independent");
+    for(const auto& s : {x,y,z}) {
+        if(!isSymbKnown(s)) {
+            registerAsVar(symbol(s));
+        }
+    }
+    // todo think about normalization
+    Dist my = marginal(y).normalize();
+    Dist mz = marginal(z);
+    // plug my into mz, then rename variable to x
+    ex iidRes = mz._gf.subs(_vars[z] == my._gf).subs(_vars[y] == _vars[x]);
+    // execute x = iidRes
+    ex res = _gf.subs(_vars[x] == 1);
+    res *= iidRes * mass();
+    return Dist {res};
+}
+
+Dist Dist::updateIidSampling(const std::string &x, const Dist& y, const std::string &z) const {
+    PRECOND(!isKnownAsParam(x) && !isKnownAsParam(z), "given symbol is considered a parameter, not a variable");
+    PRECOND(y.mass() == 1, "the distribution wrapped into iid must not be a sub distribution");
+    // PRECOND(y.isUnivariate() == prodigy::Result::YES, "the distribution wrapped into iid must be univariate");
+    if(!isKnownAsVar(z)) {
+        // then this is like x = iid(y, 0) so x simply becomes 0
+        registerAsVar(symbol(z)); // consider z variable from now on
+        return update(x, "0");
+    }
+    if(!isKnownAsVar(x)) {
+        registerAsVar(symbol(x));
+    }
+    // first marginalize x away in this
+    ex res = _gf.subs(_vars[x] == 1);
+    // ySubs will be gf of y with (single) var replaced by x
+    // do this by simply substituting all known vars for x
+    // currently, gathering the symbols that actually occur in y is not implemented
+    ex ySubs = y._gf;
+    for(const auto& v : _vars) {
+        ySubs = ySubs.subs(v.second == _vars[x]);
+    }
+    // do the actual substitution
+    res = res.subs(_vars[z] == ySubs);
+    return Dist {res};
+}
+
+
+
 Dist Dist::filterLess(const std::string &x, const std::string &e) const {
-    PRECOND(!isKnownAsParam(x), "given variable is parameter");
+    PRECOND(!isKnownAsParam(x), "given symbol is a parameter");
     parser parse;
     ex eExp = parse(e);
     PRECOND(eExp.info(info_flags::nonnegint), "given expression must be non-neg int");
@@ -202,30 +348,29 @@ Dist Dist::filterLess(const std::string &x, const std::string &e) const {
     return Dist {series_to_poly(series)};
 }
 
-Dist Dist::_incrAssgn(const symbol &x, const ex &term) const {
-    ex res {_gf};
-    if(term.info(info_flags::nonnegint)) {
-        // v += k, with k a non-negative int
-        res *= pow(x, term);
-    } else if(term.info(info_flags::symbol)) {
-        // v += y, with y a variable
-        res = res.subs(term == x * term);
-    } else {
-        throw prodigy::not_implemented_error{};
+Dist Dist::substituteParam(const std::string &p, const std::string &val) const {
+    PRECOND(!isKnownAsVar(p), "given symbol is considered a variable");
+    if(!isKnownAsParam(p)) {
+        return *this;
     }
-    return Dist {res};
+    ex pSym = _params[p];
+    ex parsed = Dist::parseWithKnownSymbs(val);
+    Dist::registerAllUnknownSymbsAsParams(parsed);
+    // todo error if parsed contains known variables
+    ex res = _gf.subs(pSym == parsed);
+    return Dist { res };
 }
 
 
 /* operators */
 
 std::ostream& operator<<(std::ostream &os, const Dist &dist) {
-    os << dist._gf;
+    os << dist._gf.normal();
     return os;
 }
 
 bool operator==(const Dist &lhs, const Dist &rhs) {
-    return lhs._gf == rhs._gf;
+    return lhs._gf.normal() == rhs._gf.normal();
 }
 
 Dist operator*(const Dist &lhs, const std::string &rhs) {
@@ -236,5 +381,6 @@ Dist operator*(const Dist &lhs, const std::string &rhs) {
     Dist::registerAllUnknownSymbsAsParams(parsed);
     return Dist {parsed * lhs._gf};
 }
+
 
 

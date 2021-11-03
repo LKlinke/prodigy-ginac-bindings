@@ -36,6 +36,18 @@ TEST(Dist, update) {
     ASSERT_EQ(dist.E("x"), 6);
 }
 
+//TEST(Dist, updateNonLinear) {
+//    Dist::resetSymbolCache();
+//    Dist dist = Fac::geometric("x", "1/2") * Dist {"1/3*y + 2/3*y^2"};
+//    dist = dist.update("x", "y * x");
+//}
+
+TEST(Dist, iid) {
+    Dist::resetSymbolCache();
+    Dist  dist = Dist {"1/2*x + 1/2*x^2"} * Dist {"y^2"};
+    cout << dist.updateIidSampling("res", "x", "y").marginal("res") << endl;
+}
+
 TEST(Dist, filter) {
     Dist::resetSymbolCache();
     Dist dist = Fac::geometric("x", "1/2");

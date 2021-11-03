@@ -11,6 +11,7 @@
 #include <utility>
 #include "Exceptions.h"
 #include "macros.h"
+#include "Result.h"
 
 
 /*
@@ -35,9 +36,10 @@ private:
 
     ex _gf;
 
-    /* static (global) portion */
+    /* static (global) part of class Dist */
 
-    // global invariant: the two maps are disjoint, they map a string "s" to a symbol symb with symb.get_name() = "s" jhd d
+    // global invariant:
+    // _params and _vars are disjoint, they map a string "s" to a symbol symb with symb.get_name() = "s"
     static str2sym _params;
     static str2sym _vars;
 
@@ -75,6 +77,7 @@ private:
     static void registerAllUnknownSymbsAsParams(const ex& e);
     static void registerAsVar(const symbol& p);
     static void registerAsParam(const symbol& p);
+    static void deregister(const std::string& s);
 
 
 public:
@@ -88,15 +91,28 @@ public:
 
     /* public member functions */
 
+    const ex& gf() const;
+
     /*
      * returns total probability mass, possibly non-numeric due to params
      */
     ex mass() const;
 
     /*
+     * turns subdistribution into proper distribution by multiplying with 1/mass()
+     */
+    Dist normalize() const;
+
+    /*
      *
      */
     Dist marginal(const std::string& x) const;
+    Dist marginal(std::initializer_list<std::string> vars) const;
+
+    /*
+     *
+     */
+    prodigy::Result areIndependent(const std::string& x, const std::string& y) const;
 
     /*
      * returns expected value, possibly non-numeric due to params
@@ -114,6 +130,13 @@ private:
 public:
 
     /*
+     * update distribution according to assignment x := iid(y,z) where y and z are variables
+     * the function iid(y,z) returns the sum of z independent samples that are distributed like y
+     */
+    Dist updateIidSampling(const std::string& x, const std::string& y, const std::string& z) const;
+    Dist updateIidSampling(const std::string& x, const Dist& d, const std::string& z) const;
+
+    /*
      * less: x < e
      * leq: x <= e
      * greater: x > e
@@ -129,11 +152,17 @@ public:
     Dist filterEq(const std::string& x, const std::string& e) const { return *this - filterLess(x, e) - filterGreater(x, e); }
     Dist filterNeq(const std::string& x, const std::string& e) const { return *this - filterEq(x, e); }
 
+    /*
+     *
+     */
+    Dist substituteParam(const std::string& p, const std::string& val) const;
 
     /* operators */
 
-    friend std::ostream& operator<<(std::ostream& os, const Dist& dist);;
+    friend std::ostream& operator<<(std::ostream& os, const Dist& dist);
+
     friend bool operator==(const Dist& lhs, const Dist& rhs);
+    friend bool operator!=(const Dist& lhs, const Dist& rhs) { return !(lhs == rhs); }
 
     friend Dist operator*(const Dist& lhs, const std::string& rhs);
     friend Dist operator*(const std::string& lhs, const Dist& rhs) { return rhs * lhs; }
