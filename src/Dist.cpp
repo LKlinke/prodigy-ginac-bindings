@@ -157,16 +157,16 @@ namespace prodigy {
         return Dist{res};
     }
 
-    prodigy::Result Dist::areIndependent(const std::string &x, const std::string &y) const {
+    troolean Dist::areIndependent(const std::string &x, const std::string &y) const {
         EXPECTS(!isKnownAsParam(x) && !isKnownAsParam(y), "given symbol is considered a parameter");
         // todo think about normalization
         Dist mx = marginal(x).normalize();
         Dist my = marginal(y).normalize();
         Dist mxy = marginal({x, y}).normalize();
         if (mx * my == mxy) {
-            return prodigy::Result::YES;
+            return troolean::YES;
         } else {
-            return prodigy::Result::UNKNOWN;
+            return troolean::UNKNOWN;
         }
     }
 
@@ -270,7 +270,7 @@ namespace prodigy {
                 } else if (f.info(info_flags::symbol)) {
                     const auto &fSym = ex_to<symbol>(f);
                     Dist tmpDist{res};  // wrap in Dist to access "areIndependent"
-                    if (tmpDist.areIndependent(TMP_NAME, fSym.get_name()) == prodigy::Result::YES) {
+                    if (tmpDist.areIndependent(TMP_NAME, fSym.get_name()) == troolean::YES) {
                         // this line implements "tmp *= f"
                         res = res.subs(tmp == tmpDist.marginal(fSym.get_name()).gf().subs(fSym == tmp));
                     } else {
@@ -291,7 +291,7 @@ namespace prodigy {
     Dist Dist::updateIid(const std::string &x, const Dist &d, const std::string &y) const {
         EXPECTS(!isKnownAsParam(x) && !isKnownAsParam(y), "given symbol is considered a parameter, not a variable");
         EXPECTS(d.mass() == 1, "the distribution wrapped into iid must not be a sub distribution");
-        // EXPECTS(y.isUnivariate() == prodigy::Result::YES, "the distribution wrapped into iid must be univariate");
+        // EXPECTS(y.isUnivariate() == troolean::YES, "the distribution wrapped into iid must be univariate");
         if (!isKnownAsVar(y)) {
             // then this is like x = iid(y, 0) so x simply becomes 0
             registerAsVar(symbol(y)); // consider z variable from now on

@@ -11,7 +11,7 @@
 #include <utility>
 #include "Exceptions.h"
 #include "macros.h"
-#include "Result.h"
+#include "troolean.h"
 
 namespace prodigy {
 
@@ -113,7 +113,7 @@ namespace prodigy {
         /*
          * attempts to prove that x and y are independent variables
          */
-        prodigy::Result areIndependent(const std::string& x, const std::string& y) const;
+        troolean areIndependent(const std::string& x, const std::string& y) const;
 
         /*
          * returns expected value, possibly non-numeric due to params
