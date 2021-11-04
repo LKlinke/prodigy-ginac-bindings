@@ -157,6 +157,42 @@ namespace prodigy {
         return Dist{res};
     }
 
+    troolean Dist::isZero() const {
+        return makeTroolean(_gf.is_zero());
+    }
+
+    troolean Dist::isTrivial() const {
+        ex gfNormal = _gf.normal();
+        if(gfNormal.info(info_flags::numeric) && 0 <= ex_to<numeric>(gfNormal) && ex_to<numeric>(gfNormal) <= 1) {
+            return troolean::YES;
+        }
+        return troolean::UNKNOWN;
+    }
+
+    troolean Dist::isUnivariate(std::string& res) const {
+        ex gfNormal = _gf.normal();
+        str2sym found;
+        for(auto it = gfNormal.preorder_begin(); it != gfNormal.preorder_end(); ++it) {
+            if(is_a<symbol>(*it)) {
+                const auto& s = ex_to<symbol>(*it);
+                if(isKnownAsParam(s)) continue;
+                assert(isKnownAsVar(s));
+                found[s.get_name()] = s;
+                res = s.get_name();
+            }
+        }
+        if(found.size() > 1) {
+            return troolean::UNKNOWN;
+        } else {
+            return troolean::YES;
+        }
+    }
+
+    troolean Dist::isUnivariate() const {
+        std::string trash;
+        return isUnivariate(trash);
+    }
+
     troolean Dist::areIndependent(const std::string &x, const std::string &y) const {
         EXPECTS(!isKnownAsParam(x) && !isKnownAsParam(y), "given symbol is considered a parameter");
         // todo think about normalization
@@ -242,8 +278,11 @@ namespace prodigy {
             res *= pow(x, term);
         } else if (term.info(info_flags::negint)) {
             // x += k, with k a neg int
-            res *= pow(x, term);
-            // todo make a check if x >= k with prob 1
+            // we implement ``monus''
+            int k = ex_to<numeric>(term).to_int();
+            ex smallerK = series_to_poly(res.series(x, -k));
+            ex rest = res - smallerK;
+            res = rest*pow(x, term) + smallerK.subs(x == 1);
         } else if (term.info(info_flags::symbol)) {
             // x += y, with y a variable
             res = res.subs(term == x * term);
@@ -291,7 +330,7 @@ namespace prodigy {
     Dist Dist::updateIid(const std::string &x, const Dist &d, const std::string &y) const {
         EXPECTS(!isKnownAsParam(x) && !isKnownAsParam(y), "given symbol is considered a parameter, not a variable");
         EXPECTS(d.mass() == 1, "the distribution wrapped into iid must not be a sub distribution");
-        // EXPECTS(y.isUnivariate() == troolean::YES, "the distribution wrapped into iid must be univariate");
+        EXPECTS(d.isUnivariate() == troolean::YES, "the distribution wrapped into iid must be univariate");
         if (!isKnownAsVar(y)) {
             // then this is like x = iid(y, 0) so x simply becomes 0
             registerAsVar(symbol(y)); // consider z variable from now on

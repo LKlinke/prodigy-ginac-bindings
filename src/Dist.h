@@ -111,7 +111,25 @@ namespace prodigy {
         Dist marginal(std::initializer_list<std::string> vars) const;
 
         /*
-         * attempts to prove that x and y are independent variables
+         * attempts to prove that *this is the zero distribution (mass 0)
+         */
+        troolean isZero() const;
+
+        /*
+         * attempts to prove that *this is a trivial distribution
+         * (i.e. all vars trivial meaning that no state except (0,...,0) has positive mass)
+         */
+        troolean isTrivial() const;
+
+        /*
+         * attempts to prove that *this is univariate (at most one non-trivial var)
+         * if *this is non-trivial and univariate, then optional res is the variable, otherwise res is undefined
+         */
+        troolean isUnivariate(std::string& res) const;
+        troolean isUnivariate() const;
+
+        /*
+         * attempts to prove that x and y are independent variables in *this
          */
         troolean areIndependent(const std::string& x, const std::string& y) const;
 

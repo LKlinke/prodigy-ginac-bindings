@@ -37,11 +37,11 @@ TEST(Dist, update) {
     ASSERT_EQ(dist.E("x"), 6);
 }
 
-//TEST(Dist, updateNonLinear) {
-//    Dist::resetSymbolCache();
-//    Dist dist = Fac::geometric("x", "1/2") * Dist {"1/3*y + 2/3*y^2"};
-//    dist = dist.update("x", "y * x");
-//}
+TEST(Dist, updateMonus) {
+    Dist::resetSymbolCache();
+    Dist dist {"1/2 + 1/2 * x^2"};
+    ASSERT_EQ(dist.update("x", "x - 1"), Dist {"1/2 + 1/2 * x"});
+}
 
 TEST(Dist, iid) {
     Dist::resetSymbolCache();

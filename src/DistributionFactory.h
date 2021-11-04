@@ -17,7 +17,4 @@ namespace prodigy {
 
 } // namespace prodigy
 
-
-
-
 #endif //PRODIGY_DISTRIBUTIONFACTORY_H

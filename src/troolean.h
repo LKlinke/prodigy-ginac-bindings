@@ -13,6 +13,11 @@ namespace prodigy {
         UNKNOWN
     };
 
+    constexpr troolean makeTroolean(bool b) {
+        if(b) return troolean::YES;
+        return troolean::NO;
+    }
+
 }
 
 #endif //PRODIGY_TROOLEAN_H
