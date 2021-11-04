@@ -5,6 +5,9 @@
 #ifndef PRODIGY_MACROS_H
 #define PRODIGY_MACROS_H
 
-#define PRECOND(pre, msg) if(!(pre)) throw std::invalid_argument(msg)
+/*
+ * macro used exclusively for validating inputs to the public interface
+ */
+#define EXPECTS(pre, msg) if(!(pre)) throw std::invalid_argument(msg)
 
 #endif //PRODIGY_MACROS_H

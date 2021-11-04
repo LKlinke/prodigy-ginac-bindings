@@ -100,9 +100,9 @@ namespace prodigy {
 
     Dist::Dist(const std::string &gfStr, const std::string &pStr) {
         ex p = parseWithKnownSymbs(pStr); // might throw parse error
-        PRECOND(is_a<symbol>(p), "given parameter is not a symbol");
+        EXPECTS(is_a<symbol>(p), "given parameter is not a symbol");
         const auto &pSym = ex_to<symbol>(p);
-        PRECOND(!isKnownAsVar(pSym), "given parameter was registered as variable before");
+        EXPECTS(!isKnownAsVar(pSym), "given parameter was registered as variable before");
         registerAsParam(pSym);
         ex gf = parseWithKnownSymbs(gfStr); // might throw parse error
         // todo if parseWithKnownSymbs(gfStr) throws then global state was modified without creating object successfully
@@ -134,7 +134,7 @@ namespace prodigy {
     }
 
     Dist Dist::marginal(const std::string &x) const {
-        PRECOND(!isKnownAsParam(x), "given symbol is considered a parameter");
+        EXPECTS(!isKnownAsParam(x), "given symbol is considered a parameter");
         ex res{_gf};
         for (const auto &v : _vars) {
             if (v.first != x) {
@@ -146,7 +146,7 @@ namespace prodigy {
 
     Dist Dist::marginal(std::initializer_list<std::string> vars) const {
         for (const auto &v : vars) {
-            PRECOND(!isKnownAsParam(v), "given symbol is considered a parameter");
+            EXPECTS(!isKnownAsParam(v), "given symbol is considered a parameter");
         }
         ex res{_gf};
         for (const auto &v : _vars) {
@@ -158,7 +158,7 @@ namespace prodigy {
     }
 
     prodigy::Result Dist::areIndependent(const std::string &x, const std::string &y) const {
-        PRECOND(!isKnownAsParam(x) && !isKnownAsParam(y), "given symbol is considered a parameter");
+        EXPECTS(!isKnownAsParam(x) && !isKnownAsParam(y), "given symbol is considered a parameter");
         // todo think about normalization
         Dist mx = marginal(x).normalize();
         Dist my = marginal(y).normalize();
@@ -172,7 +172,7 @@ namespace prodigy {
 
 
     ex Dist::E(const std::string &x) const {
-        PRECOND(!isKnownAsParam(x), "given symbol is considered a parameter");
+        EXPECTS(!isKnownAsParam(x), "given symbol is considered a parameter");
         if (isKnownAsVar(x)) {
             Dist marg = marginal(x);
             ex res{marg._gf};
@@ -192,12 +192,12 @@ namespace prodigy {
     }
 
     Dist Dist::update(const std::string &x, const std::string &e) const {
-        PRECOND(!isKnownAsParam(x), "lhs of update may not be a parameter");
+        EXPECTS(!isKnownAsParam(x), "lhs of update may not be a parameter");
         ex xExp = parseWithKnownSymbs(x); // might throw parse error
         ex eExp = parseWithKnownSymbs(e);
-        PRECOND(is_a<symbol>(xExp), "lhs of update must be a symbol");
+        EXPECTS(is_a<symbol>(xExp), "lhs of update must be a symbol");
         const auto &xSym = ex_to<symbol>(xExp);
-        PRECOND(eExp.info(info_flags::polynomial), "only polynomial arithmetic is supported in updates");
+        EXPECTS(eExp.info(info_flags::polynomial), "only polynomial arithmetic is supported in updates");
         return _update(xSym, eExp); // might throw errors
     }
 
@@ -289,9 +289,9 @@ namespace prodigy {
     }
 
     Dist Dist::updateIid(const std::string &x, const Dist &d, const std::string &y) const {
-        PRECOND(!isKnownAsParam(x) && !isKnownAsParam(y), "given symbol is considered a parameter, not a variable");
-        PRECOND(d.mass() == 1, "the distribution wrapped into iid must not be a sub distribution");
-        // PRECOND(y.isUnivariate() == prodigy::Result::YES, "the distribution wrapped into iid must be univariate");
+        EXPECTS(!isKnownAsParam(x) && !isKnownAsParam(y), "given symbol is considered a parameter, not a variable");
+        EXPECTS(d.mass() == 1, "the distribution wrapped into iid must not be a sub distribution");
+        // EXPECTS(y.isUnivariate() == prodigy::Result::YES, "the distribution wrapped into iid must be univariate");
         if (!isKnownAsVar(y)) {
             // then this is like x = iid(y, 0) so x simply becomes 0
             registerAsVar(symbol(y)); // consider z variable from now on
@@ -315,12 +315,12 @@ namespace prodigy {
     }
 
     Dist Dist::filterLess(const std::string &x, const std::string &e) const {
-        PRECOND(!isKnownAsParam(x), "given symbol is a parameter");
+        EXPECTS(!isKnownAsParam(x), "given symbol is a parameter");
         parser parse;
         ex eExp = parse(e);
-        PRECOND(eExp.info(info_flags::nonnegint), "given expression must be non-neg int");
+        EXPECTS(eExp.info(info_flags::nonnegint), "given expression must be non-neg int");
         int order = ex_to<numeric>(eExp).to_int();
-        PRECOND(isKnownAsVar(x), "given variable is not known");
+        EXPECTS(isKnownAsVar(x), "given variable is not known");
         // todo one might accept unknown vars as well
         const auto &xExp = _vars.at(x);
         ex series = _gf.series(xExp, order);
@@ -328,7 +328,7 @@ namespace prodigy {
     }
 
     Dist Dist::substituteParam(const std::string &p, const std::string &val) const {
-        PRECOND(!isKnownAsVar(p), "given symbol is considered a variable");
+        EXPECTS(!isKnownAsVar(p), "given symbol is considered a variable");
         if (!isKnownAsParam(p)) {
             return *this;
         }

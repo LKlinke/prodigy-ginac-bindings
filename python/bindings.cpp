@@ -8,7 +8,7 @@
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
 
 using std::string;
-using namespace GiNaC;
+using GiNaC::ex;
 using namespace prodigy;
 
 // converts GiNaC::ex to string
