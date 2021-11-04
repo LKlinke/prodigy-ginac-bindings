@@ -9,6 +9,7 @@
 
 using std::string;
 using namespace GiNaC;
+using namespace prodigy;
 
 // converts GiNaC::ex to string
 string toString(const ex& e) {

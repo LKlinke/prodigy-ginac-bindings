@@ -2,6 +2,8 @@
 #include "Formula.h"
 #include "DistributionFactory.h"
 
+using namespace prodigy;
+
 int main() {
 
     /* example 1 */
