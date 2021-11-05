@@ -18,6 +18,12 @@ string toString(const ex& e) {
     return s.str();
 }
 
+string toString(const Dist& dist){
+    std::stringstream s;
+    s << dist;
+    return s.str();
+}
+
 namespace py = pybind11;
 
 PYBIND11_MODULE(prodigy, m) {
@@ -29,11 +35,14 @@ PYBIND11_MODULE(prodigy, m) {
             .def(py::init<const string&, const string&>())
             .def("E", [](const Dist& dist, const string& x) { return toString(dist.E(x)); })
             .def("update", &Dist::update)
+            .def(py::self == py::self)
+            .def(py::self != py::self)
             .def(string() * py::self)
             .def(py::self * string())
             .def(py::self * py::self)
             .def(py::self + py::self)
-            .def(py::self - py::self);
+            .def(py::self - py::self)
+            .def("__repr__", [](const Dist& dist) { return toString(dist); });
 
     m.def("geometric", &DistributionFactory::geometric, "creates a geometric distribution");
 
