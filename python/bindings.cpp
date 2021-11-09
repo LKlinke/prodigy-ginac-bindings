@@ -45,6 +45,7 @@ PYBIND11_MODULE(prodigy, m) {
             .def("filterGreater", &Dist::filterGreater)
             .def("filterGeq", &Dist::filterGeq)
             .def("marginal", [](const Dist& dist, const string& x) {return dist.marginal(x);})
+            .def("updateIid", &Dist::updateIid)
             .def(py::self == py::self)
             .def(py::self != py::self)
             .def(string() * py::self)
