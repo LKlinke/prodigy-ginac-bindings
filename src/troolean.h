@@ -5,6 +5,8 @@
 #ifndef PRODIGY_TROOLEAN_H
 #define PRODIGY_TROOLEAN_H
 
+#include <ostream>
+
 namespace prodigy {
 
     enum class troolean {
@@ -13,10 +15,9 @@ namespace prodigy {
         UNKNOWN
     };
 
-    constexpr troolean makeTroolean(bool b) {
-        if(b) return troolean::YES;
-        return troolean::NO;
-    }
+    troolean makeTroolean(bool b);
+
+    std::ostream& operator<<(std::ostream& os, troolean tr);
 
 }
 

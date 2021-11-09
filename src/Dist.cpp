@@ -388,7 +388,9 @@ namespace prodigy {
     }
 
     bool operator==(const Dist &lhs, const Dist &rhs) {
-        return lhs._gf.normal() == rhs._gf.normal();
+        // numer() rewrites to rational expression (a fraction) a returns numerator
+        // otherwise is_zero() does not always yield correct result
+        return (lhs._gf - rhs._gf).numer().is_zero();
     }
 
     Dist operator*(const Dist &lhs, const std::string &rhs) {

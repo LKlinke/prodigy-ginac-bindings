@@ -85,8 +85,8 @@ TEST(EquivalenceCheck, geometricSum) {
      4: x := 0
      *
      */
-    // l0 = DistributionFactory::geometric("x", "p") * DistributionFactory::geometric("c", "q");
-    l0 = Dist {"1/(1 - p*x)", "p"} * Dist {"1/ (1 - q*c)", "q"};
+    l0 = DistributionFactory::geometric("x", "p") * DistributionFactory::geometric("c", "q");
+    // l0 = Dist {"1/(1 - p*x)", "p"} * Dist {"1/ (1 - q*c)", "q"};
     l1 = l0.updateIid("tmp", DistributionFactory::geometric("TMP", "1/2"), "x");
     l2 = l1.update("c", "c + tmp");
     l3 = l2.update("tmp", "0");
@@ -107,7 +107,8 @@ TEST(EquivalenceCheck, geometricSum) {
      *
      *
      */
-    l0 = Dist {"1/(1 - p*x)", "p"} * Dist {"1/ (1 - q*c)", "q"};
+    l0 = DistributionFactory::geometric("x", "p") * DistributionFactory::geometric("c", "q");
+    // l0 = Dist {"1/(1 - p*x)", "p"} * Dist {"1/ (1 - q*c)", "q"};
     l1 = l0.filterGreater("x", "0");
     l2 = "1/2" * l1.update("x", "x - 1") + "1/2" * l1.update("c", "c + 1");
     l3 = l2.updateIid("tmp", DistributionFactory::geometric("TMP", "1/2"), "x");
