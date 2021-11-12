@@ -158,7 +158,9 @@ namespace prodigy {
     }
 
     troolean Dist::isZero() const {
-        return makeTroolean(_gf.is_zero());
+        // todo look deeper into what is the best way in ginac for testing whether expression is zero
+        bool ginacThinksIsZero = _gf.normal().expand().is_zero();
+        return makeTroolean(ginacThinksIsZero);
     }
 
     troolean Dist::isTrivial() const {
@@ -388,9 +390,8 @@ namespace prodigy {
     }
 
     bool operator==(const Dist &lhs, const Dist &rhs) {
-        // numer() rewrites to rational expression (a fraction) a returns numerator
-        // otherwise is_zero() does not always yield correct result
-        return (lhs._gf - rhs._gf).numer().is_zero();
+        return (lhs - rhs).isZero() == troolean::YES;
+
     }
 
     Dist operator*(const Dist &lhs, const std::string &rhs) {
