@@ -132,7 +132,8 @@ TEST(EquivalenceCheck, randomWalk) {
      1: while (s > 0) {
      2:     { s:= s + 1 } [1/2] { s:= s - 1 }
      3:     c := c + 1
-     4: }
+     5:     tmp := 0
+     6: }
      *
      */
 
@@ -147,7 +148,7 @@ TEST(EquivalenceCheck, randomWalk) {
      5:     s := 0
      6: }
      */
-    l0 = Dist {"1/(1 - p*s)", "p"} *  Dist {"1/(1 - q*c)", "q"};
+    l0 = Dist {"1/(1 - p*s)", "p"} *  Dist {"1/(1 - q*c)", "q"} * Dist {"1/(1 - r*tmp)", "r"};
     l1 = l0.filterGreater("s", "0");
     l2 = l1.updateIid("tmp", Dist {"(1 - (1-T^2)^(1/2)) / T"}, "s" );
     l3 = l2.update("c", "c + tmp");
@@ -163,27 +164,29 @@ TEST(EquivalenceCheck, randomWalk) {
      1: if (s > 0) {
      2:     { s:= s+1 } [1/2] { s:= s-1 }
      3:     c := c + 1
-     4:     if(s > 0) {
-     5:         tmp := iid(Dist{ (1 - sqrt(1-c^2)) / c }, s)
-     6:         c := c + tmp
-     7:         tmp := 0
-     8:         s := 0
-     9:     }
-    10: }
+     4:     tmp := 0
+     5:     if(s > 0) {
+     6:         tmp := iid(Dist{ (1 - sqrt(1-c^2)) / c }, s)
+     7:         c := c + tmp
+     8:         tmp := 0
+     9:         s := 0
+    10:     }
+    11: }
      *
      */
-    l0 = Dist {"1/(1 - p*s)", "p"} *  Dist {"1/(1 - q*c)", "q"};
+    l0 = Dist {"1/(1 - p*s)", "p"} *  Dist {"1/(1 - q*c)", "q"} * Dist {"1/(1 - r*tmp)", "r"};
     l1 = l0.filterGreater("s", "0");
     l2 = "1/2" * l1.update("s", "s + 1") + "1/2" * l1.update("s", "s - 1");
     l3 = l2.update("c", "c + 1");
-    l4 = l3.filterGreater("s", "0");
-    l5 = l4.updateIid("tmp", Dist {"(1 - (1-T^2)^(1/2)) / T"}, "s" );
-    l6 = l5.update("c", "c + tmp");
-    l7 = l6.update("tmp", "0");
-    l8 = l7.update("s", "0");
-    l9 = l8 + l3 - l4;
-    l10 = l9 + l0 - l1;
-    Dist res2 = l10;
+    l4 = l3.update("tmp", "0");
+    l5 = l4.filterGreater("s", "0");
+    l6 = l5.updateIid("tmp", Dist {"(1 - (1-T^2)^(1/2)) / T"}, "s" );
+    l7 = l6.update("c", "c + tmp");
+    l8 = l7.update("tmp", "0");
+    l9 = l8.update("s", "0");
+    l10 = l9 + l4 - l5;
+    l11 = l10 + l0 - l1;
+    Dist res2 = l11;
 
     ASSERT_EQ(res1, res2);
 }
