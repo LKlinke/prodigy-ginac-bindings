@@ -154,7 +154,6 @@ TEST(EquivalenceCheck, randomWalk) {
     l4 = l3.update("tmp", "0");
     l5 = l4.update("s", "0");
     l6 = l5 + l0 - l1;
-    cout << l6 << endl;
     Dist res1 = l6;
 
     /*
@@ -184,7 +183,6 @@ TEST(EquivalenceCheck, randomWalk) {
     l8 = l7.update("s", "0");
     l9 = l8 + l3 - l4;
     l10 = l9 + l0 - l1;
-    cout << l10 << endl;
     Dist res2 = l10;
 
     ASSERT_EQ(res1, res2);
