@@ -161,7 +161,7 @@ TEST(EquivalenceCheck, randomWalk) {
      *
      0:
      1: if (s > 0) {
-     2:     { s:=1 } [1/2] { s:= 2 }
+     2:     { s:= s+1 } [1/2] { s:= s-1 }
      3:     c := c + 1
      4:     if(s > 0) {
      5:         tmp := iid(Dist{ (1 - sqrt(1-c^2)) / c }, s)
