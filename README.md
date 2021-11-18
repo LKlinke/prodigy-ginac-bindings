@@ -17,10 +17,12 @@ Activate the virtual environment where prodigy should be installed, then type
 
 ```pip install .```
 
+within the prodigy root folder.
+
 ## Usage
 
 ```
 import prodigy
 dist = prodigy.geometric("x", "1/2")
-e = dist.E("x")  # e becomes 2
-'''
+e = dist.E("x")  # e becomes 1, the expected value of the 1/2-geometric distribution
+
