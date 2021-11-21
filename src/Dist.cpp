@@ -290,41 +290,9 @@ namespace prodigy {
             res = res.subs(term == x * term);
         } else if (is_a<mul>(term)) {
             throw prodigy::not_implemented_error{};
-            // todo the following does not work more than one f_1 is an inf support variable
-            // x += f_1 * ... * f_n, all f_i either non-neg int or variable
-            // algorithm:
-            // tmp = 1
-            // tmp *= f_1
-            // ...
-            // tmp *= f_n
-            // x += tmp
-            // tmp = 0
-            const std::string TMP_NAME = "TMP_SYMB_FOR_MUL";
-            symbol tmp(TMP_NAME);
-            // temporarily register symbol as variable, this is expected by public interface of Dist
-            assert(!isSymbKnown(TMP_NAME));
-            Dist::registerAsVar(tmp);
-            res *= tmp;
-            for (const auto &f : term) {
-                if (f.info(info_flags::nonnegint)) {
-                    res = res.subs(tmp == pow(tmp, f));
-                } else if (f.info(info_flags::symbol)) {
-                    const auto &fSym = ex_to<symbol>(f);
-                    Dist tmpDist{res};  // wrap in Dist to access "areIndependent"
-                    if (tmpDist.areIndependent(TMP_NAME, fSym.get_name()) == troolean::YES) {
-                        // this line implements "tmp *= f"
-                        res = res.subs(tmp == tmpDist.marginal(fSym.get_name()).gf().subs(fSym == tmp));
-                    } else {
-                        throw prodigy::not_implemented_error{};
-                    }
-                }
-            }
-            // this line implements x += tmp; tmp = 0
-            res = res.subs(tmp == x);
-            // deregister temporary symbol tmp
-            Dist::deregister(TMP_NAME);
+            // todo implement multiplication for finite-support case
         } else {
-            throw prodigy::not_implemented_error{};
+            EXPECTS(false, "requested update operation is not supported");
         }
         return Dist{res};
     }
