@@ -361,9 +361,13 @@ namespace prodigy {
         ex eExp = parse(e);
         EXPECTS(eExp.info(info_flags::nonnegint), "given expression must be non-neg int");
         int order = ex_to<numeric>(eExp).to_int();
-        EXPECTS(isKnownAsVar(x), "given variable is not known");
-        // todo one might accept unknown vars as well
-        const auto &xExp = _vars.at(x);
+        ex xExp;
+        if(!isKnownAsVar(x)) {
+            xExp = symbol {x};
+            Dist::registerAsVar(ex_to<symbol>(xExp));
+        } else {
+            xExp = _vars.at(x);
+        }
         ex series = _gf.series(xExp, order);
         return Dist{series_to_poly(series)};
     }

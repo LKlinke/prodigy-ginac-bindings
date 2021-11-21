@@ -1,1 +1,0 @@
-When using d = prodigy.Dist("1") and then checking whether d.filterLess("s<10") results in a variable not known error. 

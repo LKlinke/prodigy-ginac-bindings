@@ -55,3 +55,10 @@ TEST(Dist, filter) {
     ASSERT_EQ(dist.filterLess("x", "3").mass(), GiNaC::numeric(7,8));
     ASSERT_EQ(dist.filterLeq("x", "2").mass(), GiNaC::numeric(7,8));
 }
+
+TEST(Dist, filterUnknownVar) {
+    Dist::resetSymbolCache();
+    Dist dist {"1"};
+    ASSERT_TRUE(dist.isTrivial() == troolean::YES);
+    ASSERT_EQ(dist.filterLess("x", "1").mass(), GiNaC::numeric(1));
+}
