@@ -190,3 +190,83 @@ TEST(EquivalenceCheck, randomWalk) {
 
     ASSERT_EQ(res1, res2);
 }
+
+TEST(EquivalenceCheck, trivialIID){
+    Dist::resetSymbolCache();
+    Dist l0, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12;
+    /*
+    * given loop
+    *
+    0:
+    1: while (0 < n) {
+    2:   tmp := unif(1,6);
+    3:   m := m + tmp;
+    4:   tmp := 0;
+    5:   n := n-1
+    6: }
+    *
+    */
+
+    /*
+     * invariant
+     *
+     0:
+     1: if (0 < n){
+     2:   tmp := iid(unif(1,6), n)
+     3:   m := m+tmp
+     4:   n := 0
+     5:   tmp := 0
+     6:}
+     */
+    cout << "Invariant" << endl;
+    l0 = Dist {"1/(1 - p*n)", "p"} *  Dist {"1/(1 - q*m)", "q"} * Dist {"1/(1 - r*tmp)", "r"};
+    cout << "l0:\t" << l0 << endl;
+    l1 = l0.filterGreater("n", "0");
+    cout << "l1:\t" << l1 << endl;
+    l2 = l1.updateIid("tmp", Dist {"1/6 * T * (T^5 - 1) / (T - 1)"}, "n");
+    cout << "l2:\t" << l2 << endl;
+    l3 = l2.update("m", "m+tmp");
+    cout << "l3:\t" << l3 << endl;
+    l4 = l3.update("n", "0");
+    cout << "l4:\t" << l4 << endl;
+    l5 = l4.update("tmp", "0");
+    cout << "l5:\t" << l5 << endl;
+    Dist res1 = l5 + l0.filterLeq("n", "0");
+    cout << "res1:\t" << res1 << endl;
+
+    /*
+     * guard + body + invariant
+     *
+     0:
+     1: if (n > 0) {
+     2:   tmp := unif(1,6);
+     3:   m := m + tmp;
+     4:   tmp := 0;
+     5:   n := n-1;
+     6:   if (0 < n){
+     7:     tmp := iid(unif(1,6), n)
+     8:     m := m+tmp
+     9:     n := 0
+    10:     tmp := 0
+    11:   }
+    12:}
+     *
+     */
+    cout << "Modified Inv" << endl;
+    l0 = Dist {"1/(1 - p*n)", "p"} *  Dist {"1/(1 - q*m)", "q"} * Dist {"1/(1 - r*tmp)", "r"};
+    l1 = l0.filterGreater("n", "0");
+    l2 = l1.update("tmp", "0") * Dist {"1/6 * T * (T^6 - 1) / (T - 1)"};
+    l3 = l2.update("m", "m+n");
+    l4 = l3.update("tmp", "0");
+    l5 = l4.update("n", "n-1");
+    l6 = l5.filterGreater("n", "0");
+    l7 = l6.updateIid("tmp", Dist {"1/6 * T * (T^6 - 1) / (T - 1)"}, "n");
+    l8 = l7.update("m", "m+tmp");
+    l9 = l8.update("n", "0");
+    l10 = l9.update("tmp", "0");
+    l11 = l10 + l5.filterLeq("n", "0");
+    l12 = l11 + l0.filterLeq("n", "0");
+    Dist res2 = l12;
+
+    ASSERT_EQ(res1, res2);
+}
