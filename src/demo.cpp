@@ -1,5 +1,4 @@
 #include <iostream>
-#include "Formula.h"
 #include "DistributionFactory.h"
 
 using namespace prodigy;
