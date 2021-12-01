@@ -123,6 +123,11 @@ namespace prodigy {
 
     ex Dist::mass() const {
         ex res{_gf};
+        /* TODO
+         * normal() cancels common factors, this is needed since we are going to substitute stuff to avoid div by 0
+         * encapsulate this somehow because substitution occurs elsewhere too
+         */
+        res = res.normal();
         for (const auto &v : _vars) {
             res = res.subs(v.second == 1);
         }
@@ -310,7 +315,7 @@ namespace prodigy {
             registerAsVar(symbol(x));
         }
         // first marginalize x away in *this
-        ex res = _gf.subs(_vars[x] == 1);
+        ex res = _gf.normal().subs(_vars[x] == 1);
         // ySubs will be gf of y with (single) var replaced by x
         // do this by simply substituting all known vars for x
         // currently, gathering the symbols that actually occur in y is not implemented

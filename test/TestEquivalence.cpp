@@ -223,7 +223,7 @@ TEST(EquivalenceCheck, trivialIID){
     cout << "l0:\t" << l0 << endl;
     l1 = l0.filterGreater("n", "0");
     cout << "l1:\t" << l1 << endl;
-    l2 = l1.updateIid("tmp", Dist {"1/6 * T * (T^5 - 1) / (T - 1)"}, "n");
+    l2 = l1.updateIid("tmp", Dist {"1/6 * T * (T^6 - 1) / (T - 1)"}, "n");
     cout << "l2:\t" << l2 << endl;
     l3 = l2.update("m", "m+tmp");
     cout << "l3:\t" << l3 << endl;
