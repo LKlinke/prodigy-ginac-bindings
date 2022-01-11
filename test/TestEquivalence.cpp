@@ -270,3 +270,77 @@ TEST(EquivalenceCheck, trivialIID){
 
     ASSERT_EQ(res1, res2);
 }
+
+TEST(EquivalenceCheck, dep_bern){
+    Dist::resetSymbolCache();
+    Dist l0, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12;
+    
+    /*
+     0:
+     1: while( c > 0 ){
+     2:    {m := m+1} [1/2] {n:= n+1}
+     3:    c := c-1
+     4:    tmp := 0
+     5: }
+     */
+    
+    /*
+     0: Invariant
+     1: if (c > 0){
+     2:    tmp := iid(bernoulli(1/2), c)
+     3:    m := m + tmp
+     4:    n := n + (c-tmp)
+     5:    c := 0
+     6:    tmp := 0
+     7: } else {skip}
+     */
+    
+    cout << "Invariant" << endl;
+    l0 = Dist {"1/(1 - p*n)", "p"} *  Dist {"1/(1 - q*m)", "q"} * Dist {"1/(1 - r*c)", "r"} * Dist {"1/(1-s*t)", "s"};
+    l1 = l0.filterGreater("c", "0");
+    l2 = l1.updateIid("t", Dist {"1/2 * T + 1/2"}, "c");
+    l3 = l2.update("m", "m+t");
+    l4 = l3.update("n", "n+c-t");
+    l5 = l4.update("c", "0");
+    l6 = l5.update("t", "0");
+    l7 = l6 + (l0 - l1);
+    Dist res1 = l7;
+    
+    cout << res1 << endl;
+    
+    /*
+     0: Guard + Body + Invariant
+     1: if (c > 0){
+     2:    {m := m+1} [1/2] {n:= n+1};
+     3:    c := c-1;
+     4:    tmp := 0;
+     5:    if (c > 0){
+     6:       tmp := iid(bernoulli(1/2), c)
+     7:       m := m + tmp
+     8:       n := n + (c-tmp)
+     9:       c := 0
+     10:      tmp := 0
+     11:    } else {skip}
+     12: }
+     */
+    
+    cout << "Modified Invariant" << endl;
+    l0 = Dist {"1/(1 - p*n)", "p"} *  Dist {"1/(1 - q*m)", "q"} * Dist {"1/(1 - r*c)", "r"} * Dist {"1/(1-s*t)", "s"};
+    l1 = l0.filterGreater("c", "0");
+    l2 = "1/2" * l1.update("m", "m+1") + "1/2" * l1.update("n", "n+1");
+    l3 = l2.update("c", "c-1");
+    l4 = l3.update("t", "0");
+    l5 = l4.filterGreater("c", "0");
+    l6 = l5.updateIid("t", Dist {"1/2 * T + 1/2"}, "c");
+    l7 = l6.update("m", "m+t");
+    l8 = l7.update("n", "n+c-t");
+    l9 = l8.update("c", "0");
+    l10 = l9.update("t", "0");
+    l11 = l10 + l4.filterLeq("c", "0");
+    l12 = l11 + l0.filterLeq("c", "0");
+    Dist res2 = l12;
+    
+    cout << res2 << endl;
+    
+    ASSERT_EQ(res1, res2);
+}

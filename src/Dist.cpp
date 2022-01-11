@@ -294,7 +294,30 @@ namespace prodigy {
             // x += y, with y a variable
             res = res.subs(term == x * term);
         } else if (is_a<mul>(term)) {
-            throw prodigy::not_implemented_error{};
+            size_t subexpr_count = term.nops();
+            if (subexpr_count == 2){
+                // something like x*y || 2*x
+                ex first=term.op(0);
+                ex second=term.op(1);
+                if (first.info(info_flags::symbol) && second.info(info_flags::nonnegint)){
+                    // e.g. y*2
+                    res = res.subs(term == x*pow(first, second));
+                } else if (second.info(info_flags::symbol) && first.info(info_flags::nonnegint)){
+                    // e.g. 2*y
+                    res = res.subs(term == x * pow(second, first));
+                } else if (first.info(info_flags::symbol) && second.info(info_flags::negint)){
+                    // e.g. -y || -1 * y
+                    std::cerr << "Warning! This might lead to undesired behavior!" << std::endl;
+                    res = res.subs(term == x*pow(first, second));
+                } else if (second.info(info_flags::symbol) && first.info(info_flags::negint)){
+                    // e.g. y * -1
+                    std::cerr << "Warning! This might lead to undesired behavior!" << std::endl;
+                    res = res.subs(term == x*pow(second, first));
+                } else{
+                    EXPECTS(false, "multiplication of two variables not supported");
+                }
+            }
+            else throw prodigy::not_implemented_error{};
             // todo implement multiplication for finite-support case
         } else {
             EXPECTS(false, "requested update operation is not supported");
