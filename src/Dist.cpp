@@ -296,6 +296,7 @@ namespace prodigy {
         } else if (is_a<mul>(term)) {
             size_t subexpr_count = term.nops();
             if (subexpr_count == 2){
+                // todo this case probably has some errors and needs debugging!!
                 // something like x*y || 2*x
                 ex first=term.op(0);
                 ex second=term.op(1);
@@ -308,7 +309,7 @@ namespace prodigy {
                 } else if (first.info(info_flags::symbol) && second.info(info_flags::negint)){
                     // e.g. -y || -1 * y
                     std::cerr << "Warning! This might lead to undesired behavior!" << std::endl;
-                    res = res.subs(term == x*pow(first, second));
+                    res = res.subs(first == first*pow(x, second));
                 } else if (second.info(info_flags::symbol) && first.info(info_flags::negint)){
                     // e.g. y * -1
                     std::cerr << "Warning! This might lead to undesired behavior!" << std::endl;
