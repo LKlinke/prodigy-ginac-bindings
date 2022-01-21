@@ -300,13 +300,12 @@ TEST(EquivalenceCheck, dep_bern){
     l1 = l0.filterGreater("c", "0");
     l2 = l1.updateIid("t", Dist {"1/2 * T + 1/2"}, "c");
     l3 = l2.update("m", "m+t");
-    l4 = l3.update("n", "n+c-t");
+    l4 = l3.update("n", "n+c");
+    l4 = l4.update("n", "n-t");
     l5 = l4.update("c", "0");
     l6 = l5.update("t", "0");
     l7 = l6 + (l0 - l1);
     Dist res1 = l7;
-    
-    cout << res1 << endl;
     
     /*
      0: Guard + Body + Invariant
@@ -333,14 +332,15 @@ TEST(EquivalenceCheck, dep_bern){
     l5 = l4.filterGreater("c", "0");
     l6 = l5.updateIid("t", Dist {"1/2 * T + 1/2"}, "c");
     l7 = l6.update("m", "m+t");
-    l8 = l7.update("n", "n+c-t");
+    l8 = l7.update("n", "n+c");
+    l8 = l8.update("n", "n-t");
     l9 = l8.update("c", "0");
     l10 = l9.update("t", "0");
     l11 = l10 + l4.filterLeq("c", "0");
     l12 = l11 + l0.filterLeq("c", "0");
     Dist res2 = l12;
     
-    cout << res2 << endl;
+    cout << res1 - res2 << endl;
     
     ASSERT_EQ(res1, res2);
 }

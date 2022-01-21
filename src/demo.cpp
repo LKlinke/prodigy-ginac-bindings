@@ -8,12 +8,13 @@ int main() {
     /* example 1 */
 
 
-    Dist dist = DistributionFactory::geometric("x", "p");
-
+    Dist dist = DistributionFactory::geometric("x", "p") * Dist {"y^3"};
     std::cout << dist << std::endl;
     std::cout << "Total mass " << dist.mass() << std::endl;
     std::cout << "Expected value " << dist.E("x") << std::endl;
     std::cout << std::endl;
+    
+    std::cout << "Update " << dist.update("x", "x-y") << std::endl;
 
     /* example 2 */
 
