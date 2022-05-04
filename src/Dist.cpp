@@ -6,6 +6,7 @@
 #include <numeric>
 #include "Dist.h"
 #include "macros.h"
+#include <cassert>
 
 using namespace GiNaC;
 
