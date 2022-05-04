@@ -304,7 +304,7 @@ TEST(EquivalenceCheck, dep_bern){
     l4 = l4.update("n", "n-t");
     l5 = l4.update("c", "0");
     l6 = l5.update("t", "0");
-    l7 = l6 + (l0 - l1);
+    l7 = l6 + l0.filterLeq("c", "0");
     Dist res1 = l7;
     
     /*

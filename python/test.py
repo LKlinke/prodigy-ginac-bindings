@@ -1,8 +1,8 @@
-import prodigy
+import pygin
 
 if __name__ == "__main__":
-    dist = prodigy.geometric("x", "1/2")
+    dist = pygin.geometric("x", "1/2")
     print(dist.E("x"))
 
-    dist = prodigy.Dist("1");
+    dist = pygin.Dist("1");
 

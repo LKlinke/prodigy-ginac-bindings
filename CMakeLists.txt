@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.4...3.18)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
-project(prodigy)
+project(pygin)
 
 set(CMAKE_CXX_STANDARD 14)
 
@@ -21,6 +21,6 @@ add_subdirectory(test)
 
 # python bindings
 add_subdirectory(lib/pybind11)
-pybind11_add_module(prodigy python/bindings.cpp)
-target_link_libraries(prodigy PUBLIC ${CMAKE_PROJECT_NAME}_lib)
-target_compile_definitions(prodigy PRIVATE VERSION_INFO=${EXAMPLE_VERSION_INFO})
+pybind11_add_module(pygin python/bindings.cpp)
+target_link_libraries(pygin PUBLIC ${CMAKE_PROJECT_NAME}_lib)
+target_compile_definitions(pygin PRIVATE VERSION_INFO=${EXAMPLE_VERSION_INFO})
