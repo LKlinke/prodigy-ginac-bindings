@@ -309,11 +309,11 @@ namespace prodigy {
                     res = res.subs(term == x * pow(second, first));
                 } else if (first.info(info_flags::symbol) && second.info(info_flags::negint)){
                     // e.g. -y || -1 * y
-                    std::cerr << "Warning! This might lead to undesired behavior!" << std::endl;
+                    //std::cerr << "Warning! This might lead to undesired behavior!" << std::endl;
                     res = res.subs(first == first*pow(x, second));
                 } else if (second.info(info_flags::symbol) && first.info(info_flags::negint)){
                     // e.g. y * -1
-                    std::cerr << "Warning! This might lead to undesired behavior!" << std::endl;
+                    //std::cerr << "Warning! This might lead to undesired behavior!" << std::endl;
                     res = res.subs(term == x*pow(second, first));
                 } else{
                     EXPECTS(false, "multiplication of two variables not supported");
