@@ -63,7 +63,8 @@ PYBIND11_MODULE(pygin, m) {
     m.def("geometric", &DistributionFactory::geometric, "creates a geometric distribution")
     .def("uniform", &DistributionFactory::uniform, "creates a uniform distribution")
     .def("is_known_as_var", [](const string& x) { return Dist::isKnownAsVar(x); })
-    .def("is_known_as_param", [](const string& x) { return Dist::isKnownAsParam(x); });
+    .def("is_known_as_param", [](const string& x) { return Dist::isKnownAsParam(x); })
+    .def("reset_symbol_cache", &Dist::resetSymbolCache);
 
     py::enum_<troolean>(m, "troolean")
             .value("false", troolean::FALSE)

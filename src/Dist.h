@@ -70,6 +70,7 @@ namespace prodigy {
         static bool isSymbKnown(const std::string& s);
         static bool isKnownAsVar(const std::string& s);
         static bool isKnownAsParam(const std::string& s);
+        static bool test() { return true; }
     private:
         static bool isSymbKnown(const symbol& s);
         static bool isKnownAsVar(const symbol& s);
@@ -106,18 +107,19 @@ namespace prodigy {
          * all other symbols in 'gfStr' are registered as variables
          */
         Dist(const std::string& gfStr, const std::vector<std::string>& paramsStr);
+        Dist(const std::string& gfStr, std::initializer_list<std::string> paramsStr) : Dist(gfStr, std::vector<std::string>{paramsStr}) { }
 
         /*
          * constructs a distribution with gf 'gfStr' containing a symbol 'pStr'
          * the symbol 'pStr' is registered as a parameter
          * all other symbols in 'gfStr' are registered as variables
          */
-        Dist(const std::string& gfStr, const std::string& pStr) : Dist(gfStr, std::vector<std::string>{pStr}) { /* intentionally left empty */ }
+        Dist(const std::string& gfStr, const std::string& pStr) : Dist(gfStr, std::vector<std::string>{pStr}) { }
 
 
 
     private:
-        explicit Dist(ex gf) : _gf(std::move(gf)) { /* intentionally left empty */ }
+        explicit Dist(ex gf) : _gf(std::move(gf)) { }
 
     public:
 
@@ -145,7 +147,9 @@ namespace prodigy {
          */
         Dist marginal(const std::string& x) const;
         Dist marginal(const std::vector<std::string>& vars) const;
-        Dist marginal(std::initializer_list<std::string> vars) const { return this->marginal(std::vector<std::string>{vars}); }
+        Dist marginal(std::initializer_list<std::string> vars) const {
+            return this->marginal(std::vector<std::string>{vars});
+        }
 
         /*
          * attempts to prove that *this is the zero distribution (mass 0)
