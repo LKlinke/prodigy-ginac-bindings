@@ -59,8 +59,11 @@ PYBIND11_MODULE(pygin, m) {
             .def(py::self - py::self)
             .def("__repr__", [](const Dist& dist) { return toString(dist); });
 
-    m.def("geometric", &DistributionFactory::geometric, "creates a geometric distribution");
-    m.def("uniform", &DistributionFactory::uniform, "creates a uniform distribution");
+    // global functions in python
+    m.def("geometric", &DistributionFactory::geometric, "creates a geometric distribution")
+    .def("uniform", &DistributionFactory::uniform, "creates a uniform distribution")
+    .def("is_known_as_var", [](const string& x) { return Dist::isKnownAsVar(x); })
+    .def("is_known_as_param", [](const string& x) { return Dist::isKnownAsParam(x); });
 
     py::enum_<troolean>(m, "troolean")
             .value("false", troolean::FALSE)
