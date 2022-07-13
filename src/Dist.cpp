@@ -158,12 +158,14 @@ namespace prodigy {
         return Dist{res};
     }
 
-    Dist Dist::marginal(std::initializer_list<std::string> vars) const {
+    Dist Dist::marginal(const std::vector<std::string>& vars) const {
         for (const auto &v : vars) {
             EXPECTS(!isKnownAsParam(v), "given symbol is considered a parameter");
         }
         ex res{_gf};
+        // go over all variables v we currently know
         for (const auto &v : _vars) {
+            // if v is not in the given list vars then project it away
             if (std::find(vars.begin(), vars.end(), v.first) == vars.end()) {
                 res = res.subs(v.second == 1);
             }

@@ -144,7 +144,8 @@ namespace prodigy {
          * returns marginal distribution in given variable(s)
          */
         Dist marginal(const std::string& x) const;
-        Dist marginal(std::initializer_list<std::string> vars) const;
+        Dist marginal(const std::vector<std::string>& vars) const;
+        Dist marginal(std::initializer_list<std::string> vars) const { return this->marginal(std::vector<std::string>{vars}); }
 
         /*
          * attempts to prove that *this is the zero distribution (mass 0)
