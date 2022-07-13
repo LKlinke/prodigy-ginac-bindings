@@ -31,6 +31,8 @@ namespace prodigy {
         using symbol = GiNaC::symbol;
         using str2sym = std::map<std::string, ex>;
 
+        friend class DistributionFactory;
+
     private:
 
         /* private member variables */
@@ -73,6 +75,11 @@ namespace prodigy {
         static bool isKnownAsVar(const symbol& s);
         static bool isKnownAsParam(const symbol& s);
 
+        /*
+         * attempts to convert the given string to an expression
+         * links all syntactic symbol names (e.g. "x") to the symbol objects registered in the tables _vars and _params
+         * new symbols are created for unknown names, but they are not registered
+         */
         static ex parseWithKnownSymbs(const std::string& s);
         static void registerAllUnknownSymbsAsVars(const ex& e);
         static void registerAllUnknownSymbsAsParams(const ex& e);
@@ -86,9 +93,33 @@ namespace prodigy {
         /* constructors */
 
         Dist() = default;
-        Dist(const std::string& gfStr, const std::string& pStr);
+
+        /*
+         * constructs a distribution with gf 'gfStr'
+         * all symbols in 'gfStr' are registered as variables
+         */
         explicit Dist(const std::string& gfStr);
-        private: explicit Dist(ex gf) : _gf(std::move(gf)) { /* intentionally left empty */ } public:
+
+        /*
+         * constructs a distribution with gf 'gfStr' containing the symbols in 'paramsStr'
+         * the symbols in 'paramsStr' are registered as parameters
+         * all other symbols in 'gfStr' are registered as variables
+         */
+        Dist(const std::string& gfStr, const std::vector<std::string>& paramsStr);
+
+        /*
+         * constructs a distribution with gf 'gfStr' containing a symbol 'pStr'
+         * the symbol 'pStr' is registered as a parameter
+         * all other symbols in 'gfStr' are registered as variables
+         */
+        Dist(const std::string& gfStr, const std::string& pStr) : Dist(gfStr, std::vector<std::string>{pStr}) { /* intentionally left empty */ }
+
+
+
+    private:
+        explicit Dist(ex gf) : _gf(std::move(gf)) { /* intentionally left empty */ }
+
+    public:
 
         /* public member functions */
 
@@ -98,6 +129,11 @@ namespace prodigy {
          * returns total probability mass, possibly non-numeric due to params
          */
         ex mass() const;
+
+        /*
+         * approximate size of underlying gf representation
+         */
+        int gfSize() const;
 
         /*
          * turns subdistribution into proper distribution by multiplying with 1/mass()
@@ -183,8 +219,15 @@ namespace prodigy {
         friend bool operator==(const Dist& lhs, const Dist& rhs);
         friend bool operator!=(const Dist& lhs, const Dist& rhs) { return !(lhs == rhs); }
 
+        /*
+         * scale a distribution by a constant (possibly containing params)
+         */
         friend Dist operator*(const Dist& lhs, const std::string& rhs);
         friend Dist operator*(const std::string& lhs, const Dist& rhs) { return rhs * lhs; }
+
+        /*
+         * convolution of distributions
+         */
         friend Dist operator*(const Dist& lhs, const Dist& rhs) { return Dist {lhs._gf * rhs._gf}; }
 
         friend Dist operator+(const Dist& lhs, const Dist& rhs) { return Dist {lhs._gf + rhs._gf}; }

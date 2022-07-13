@@ -7,14 +7,14 @@
 namespace prodigy {
 
     troolean makeTroolean(bool b) {
-        if(b) return troolean::YES;
-        return troolean::NO;
+        if(b) return troolean::TRUE;
+        return troolean::FALSE;
     }
 
     std::ostream& operator<<(std::ostream& os, troolean tr) {
-        if(tr == troolean::YES) {
+        if(tr == troolean::TRUE) {
             return os << "yes";
-        } else if(tr == troolean::NO) {
+        } else if(tr == troolean::FALSE) {
             return os << "no";
         } else {
             return os << "unknown";

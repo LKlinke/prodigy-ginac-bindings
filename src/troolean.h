@@ -10,8 +10,8 @@
 namespace prodigy {
 
     enum class troolean {
-        NO,
-        YES,
+        FALSE,
+        TRUE,
         UNKNOWN
     };
 

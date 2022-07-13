@@ -12,7 +12,15 @@ namespace prodigy {
     class DistributionFactory {
 
     public:
+        /*
+         * constructs a distribution where x is p-geometrically distributed
+         */
         static Dist geometric(const std::string& x, const std::string& p);
+
+        /*
+         * constructs a distribution where x is uniformly distributed over [a,b]
+         */
+        static Dist uniform(const std::string& x, const std::string& a, const std::string& b);
     };
 
 } // namespace prodigy

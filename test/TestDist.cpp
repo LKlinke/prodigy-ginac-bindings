@@ -59,6 +59,13 @@ TEST(Dist, filter) {
 TEST(Dist, filterUnknownVar) {
     Dist::resetSymbolCache();
     Dist dist {"1"};
-    ASSERT_TRUE(dist.isTrivial() == troolean::YES);
+    ASSERT_TRUE(dist.isTrivial() == troolean::TRUE);
     ASSERT_EQ(dist.filterLess("x", "1").mass(), GiNaC::numeric(1));
+}
+
+TEST(Dist, gfSize) {
+    Dist::resetSymbolCache();
+    ASSERT_EQ(Dist("(x+1)^2").gfSize(), Dist("(x+1)^100").gfSize());
+    ASSERT_EQ(Dist("x").gfSize(), 1);
+    ASSERT_EQ(Dist("x+y").gfSize(), 3);
 }

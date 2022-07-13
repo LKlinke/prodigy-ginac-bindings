@@ -48,7 +48,6 @@ namespace prodigy {
         return _params.count(s) > 0;
     }
 
-// new symbols will be created for unknown names, but not registered
     ex Dist::parseWithKnownSymbs(const std::string &s) {
         parser pars(paramsAndVars());
         ex parsed = pars(s); // might throw parse error
@@ -99,20 +98,21 @@ namespace prodigy {
 
 /* public interface of dist */
 
-    Dist::Dist(const std::string &gfStr, const std::string &pStr) {
-        ex p = parseWithKnownSymbs(pStr); // might throw parse error
-        EXPECTS(is_a<symbol>(p), "given parameter is not a symbol");
-        const auto &pSym = ex_to<symbol>(p);
-        EXPECTS(!isKnownAsVar(pSym), "given parameter was registered as variable before");
-        registerAsParam(pSym);
+    Dist::Dist(const std::string &gfStr) {
         ex gf = parseWithKnownSymbs(gfStr); // might throw parse error
-        // todo if parseWithKnownSymbs(gfStr) throws then global state was modified without creating object successfully
-        // todo issue warning if gf does not have p as subexpression
         registerAllUnknownSymbsAsVars(gf);
         _gf = gf;
     }
 
-    Dist::Dist(const std::string &gfStr) {
+    Dist::Dist(const std::string &gfStr, const std::vector<std::string> &paramsStr) {
+        for(const auto& pStr : paramsStr) {
+            ex p = parseWithKnownSymbs(pStr); // might throw parse error
+            EXPECTS(is_a<symbol>(p), "given parameter is not a symbol");
+            const auto &pSym = ex_to<symbol>(p);
+            EXPECTS(!isKnownAsVar(pSym), "given parameter was registered as variable before");
+            // TODO we might want to not register the param if gf does not contain it at all
+            registerAsParam(pSym);
+        }
         ex gf = parseWithKnownSymbs(gfStr); // might throw parse error
         registerAllUnknownSymbsAsVars(gf);
         _gf = gf;
@@ -133,6 +133,14 @@ namespace prodigy {
             res = res.subs(v.second == 1);
         }
         return res;
+    }
+
+    int Dist::gfSize() const {
+        int result = 0;
+        for(auto it = _gf.preorder_begin(); it != _gf.preorder_end(); ++it) {
+            result += 1;
+        }
+        return result;
     }
 
     Dist Dist::normalize() const {
@@ -172,7 +180,7 @@ namespace prodigy {
     troolean Dist::isTrivial() const {
         ex gfNormal = _gf.normal();
         if(gfNormal.info(info_flags::numeric) && 0 <= ex_to<numeric>(gfNormal) && ex_to<numeric>(gfNormal) <= 1) {
-            return troolean::YES;
+            return troolean::TRUE;
         }
         return troolean::UNKNOWN;
     }
@@ -192,7 +200,7 @@ namespace prodigy {
         if(found.size() > 1) {
             return troolean::UNKNOWN;
         } else {
-            return troolean::YES;
+            return troolean::TRUE;
         }
     }
 
@@ -208,7 +216,7 @@ namespace prodigy {
         Dist my = marginal(y).normalize();
         Dist mxy = marginal({x, y}).normalize();
         if (mx * my == mxy) {
-            return troolean::YES;
+            return troolean::TRUE;
         } else {
             return troolean::UNKNOWN;
         }
@@ -330,7 +338,7 @@ namespace prodigy {
     Dist Dist::updateIid(const std::string &x, const Dist &d, const std::string &y) const {
         EXPECTS(!isKnownAsParam(x) && !isKnownAsParam(y), "given symbol is considered a parameter, not a variable");
         EXPECTS(d.mass() == 1, "the distribution wrapped into iid must not be a sub distribution");
-        EXPECTS(d.isUnivariate() == troolean::YES, "the distribution wrapped into iid must be univariate");
+        EXPECTS(d.isUnivariate() == troolean::TRUE, "the distribution wrapped into iid must be univariate");
         if (!isKnownAsVar(y)) {
             // then this is like x = iid(y, 0) so x simply becomes 0
             registerAsVar(symbol(y)); // consider z variable from now on
@@ -392,7 +400,7 @@ namespace prodigy {
     }
 
     bool operator==(const Dist &lhs, const Dist &rhs) {
-        return (lhs - rhs).isZero() == troolean::YES;
+        return (lhs - rhs).isZero() == troolean::TRUE;
 
     }
 

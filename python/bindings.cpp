@@ -1,5 +1,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
+#include <pybind11/stl.h> // for STL containers
 #include <sstream>
 
 #include "DistributionFactory.h"
@@ -33,19 +34,21 @@ PYBIND11_MODULE(pygin, m) {
             .def(py::init())
             .def(py::init<const string&>())
             .def(py::init<const string&, const string&>())
+            .def(py::init<const string&, const std::vector<string>&>())
             .def("E", [](const Dist& dist, const string& x) { return toString(dist.E(x)); })
-            .def("update", &Dist::update)
             .def("mass", [](const Dist& dist) { return toString(dist.mass()); })
             .def("normalize", &Dist::normalize)
-            .def("isZero", &Dist::isZero)
+            .def("marginal", [](const Dist& dist, const string& x) {return dist.marginal(x);})
+            .def("is_zero", &Dist::isZero)
+            .def("is_trivial", &Dist::isTrivial)
+            .def("update", &Dist::update)
+            .def("updateIid", &Dist::updateIid)
             .def("filterLess", &Dist::filterLess)
             .def("filterEq", &Dist::filterEq)
             .def("filterNeq", &Dist::filterNeq)
             .def("filterLeq", &Dist::filterLeq)
             .def("filterGreater", &Dist::filterGreater)
             .def("filterGeq", &Dist::filterGeq)
-            .def("marginal", [](const Dist& dist, const string& x) {return dist.marginal(x);})
-            .def("updateIid", &Dist::updateIid)
             .def(py::self == py::self)
             .def(py::self != py::self)
             .def(string() * py::self)
@@ -56,8 +59,12 @@ PYBIND11_MODULE(pygin, m) {
             .def("__repr__", [](const Dist& dist) { return toString(dist); });
 
     m.def("geometric", &DistributionFactory::geometric, "creates a geometric distribution");
+    m.def("uniform", &DistributionFactory::uniform, "creates a uniform distribution");
 
-
+    py::enum_<troolean>(m, "troolean")
+            .value("false", troolean::FALSE)
+            .value("true", troolean::TRUE)
+            .value("unknown", troolean::UNKNOWN);
 
 
     #ifdef VERSION_INFO
