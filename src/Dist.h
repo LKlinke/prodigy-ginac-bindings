@@ -16,7 +16,8 @@
 namespace prodigy {
 
     /*
-     * represents a (possibly parametric) probability distribution over non-negative integer variable valuations using gfs
+     * represents a (possibly parametric) distribution over non-negative integer variable valuations using gfs
+     * 'distribution' does not necessarily refer to probability distribution
      *
      * Notes:
      * - Variables and parameters are managed globally.

@@ -1,4 +1,4 @@
-# prodigy: A library for manipulation distributions through generating functions
+# pygin: A library for manipulation discrete distributions through generating functions
 
 The main features are
 - python bindings
@@ -22,7 +22,7 @@ within the prodigy root folder.
 ## Usage
 
 ```
-import prodigy
-dist = prodigy.geometric("x", "1/2")
+import pygin
+dist = pygin.geometric("x", "1/2")
 e = dist.E("x")  # e becomes 1, the expected value of the 1/2-geometric distribution
 
