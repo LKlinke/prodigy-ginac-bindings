@@ -24,7 +24,7 @@ int main() {
     std::cout << "Total mass " << dist2.mass() << std::endl;
     std::cout << "Expected value " << dist2.E("y") << std::endl;
 
-    dist2 = "p" * dist2;
+    dist2 = Dist("p", "p") * dist2;
     std::cout << dist2 << std::endl;
     std::cout << "has parameter p " << Dist::isKnownAsParam("p") << std::endl;
     std::cout << "Total mass " << dist2.mass() << std::endl;

@@ -394,7 +394,7 @@ namespace prodigy {
     }
 
 
-/* operators */
+    /* operators */
 
     std::ostream &operator<<(std::ostream &os, const Dist &dist) {
         os << dist._gf.normal();

@@ -226,15 +226,19 @@ namespace prodigy {
 
         /*
          * scale a distribution by a constant (possibly containing params)
+         * TODO we don't want this in the python anymore as the semantics regarding what is var/param is not consistent
          */
         friend Dist operator*(const Dist& lhs, const std::string& rhs);
         friend Dist operator*(const std::string& lhs, const Dist& rhs) { return rhs * lhs; }
 
         /*
-         * convolution of distributions
+         * convolution
          */
         friend Dist operator*(const Dist& lhs, const Dist& rhs) { return Dist {lhs._gf * rhs._gf}; }
 
+        /*
+         * point-wise sum/difference
+         */
         friend Dist operator+(const Dist& lhs, const Dist& rhs) { return Dist {lhs._gf + rhs._gf}; }
         friend Dist operator-(const Dist& lhs, const Dist& rhs) { return lhs + ("-1" * rhs); }
 
