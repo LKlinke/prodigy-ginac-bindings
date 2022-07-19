@@ -63,16 +63,19 @@ namespace prodigy {
             _params.clear();
             _vars.clear();
         }
+
     private:
 
         static str2sym paramsAndVars();
 
     public:
+
         static bool isSymbKnown(const std::string& s);
         static bool isKnownAsVar(const std::string& s);
         static bool isKnownAsParam(const std::string& s);
-        static bool test() { return true; }
+
     private:
+
         static bool isSymbKnown(const symbol& s);
         static bool isKnownAsVar(const symbol& s);
         static bool isKnownAsParam(const symbol& s);
@@ -83,6 +86,7 @@ namespace prodigy {
          * new symbols are created for unknown names, but they are not registered
          */
         static ex parseWithKnownSymbs(const std::string& s);
+
         static void registerAllUnknownSymbsAsVars(const ex& e);
         static void registerAllUnknownSymbsAsParams(const ex& e);
         static void registerAsVar(const symbol& p);
