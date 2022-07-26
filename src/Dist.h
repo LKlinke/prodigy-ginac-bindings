@@ -133,9 +133,23 @@ namespace prodigy {
         const ex& gf() const;
 
         /*
+         * returns the specified raw moment (possibly non-numeric due to presence of parameters)
+         * if *this is a distribution, then the raw moment is the expected value of the given monomial
+         * this function does not modify the global state (//todo why?)
+         */
+        ex moment(const std::map<std::string, int>& monomial) const;
+
+        /*
          * returns total probability mass, possibly non-numeric due to params
+         * // todo implement in terms of moment
          */
         ex mass() const;
+
+        /*
+         * returns expected value, possibly non-numeric due to params
+         * // todo implement in terms of moment
+         */
+        ex E(const std::string& var) const;
 
         /*
          * approximate size of underlying gf representation
@@ -180,10 +194,9 @@ namespace prodigy {
         troolean areIndependent(const std::string& x, const std::string& y) const;
 
         /*
-         * returns expected value, possibly non-numeric due to params
-         * does not modify global state
+         * attempts to prove that *this is finite-support, i.e., just finitely many coefficients are non-zero
          */
-        ex E(const std::string& var) const;
+        troolean isFiniteSupport() const;
 
         /*
          * update distribution according to assignment x := e
@@ -216,6 +229,29 @@ namespace prodigy {
         Dist filterGeq(const std::string& x, const std::string& e) const { return *this - filterLess(x, e); }
         Dist filterEq(const std::string& x, const std::string& e) const { return *this - filterLess(x, e) - filterGreater(x, e); }
         Dist filterNeq(const std::string& x, const std::string& e) const { return *this - filterEq(x, e); }
+
+        /*
+         * this iterator regards a k-dimensional distribution as 1-dimensional in the given variable with coefficients
+         * that are k-1 dimensional, and it iterates of these coefficients
+         *
+         * in other words, the iterator ranges over the coefficients in the series expansion wrt. the given of the gf
+         * underlying the given distribution
+         */
+        class CoefficientIterator {
+        private:
+            ex _rest;
+            symbol _var;
+        public:
+            CoefficientIterator(Dist dist, symbol var) : _rest(std::move(dist._gf)), _var(std::move(var)) {}
+            Dist next();
+            Dist rest() const { return Dist(_rest); }
+        };
+
+        /*
+         * returns a coefficient iterator for the dimension specified by var
+         * throws an exception if var is not registered as a variable
+         */
+        CoefficientIterator coefficientIterator(const std::string& var) const;
 
         /*
          * replaces given parameter with given value or parametric expression

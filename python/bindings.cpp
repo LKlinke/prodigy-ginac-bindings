@@ -50,6 +50,7 @@ PYBIND11_MODULE(pygin, m) {
             .def("filterLeq", &Dist::filterLeq)
             .def("filterGreater", &Dist::filterGreater)
             .def("filterGeq", &Dist::filterGeq)
+            .def("coefficient_iterator", &Dist::coefficientIterator)
             .def(py::self == py::self)
             .def(py::self != py::self)
             //.def(string() * py::self)
@@ -70,6 +71,10 @@ PYBIND11_MODULE(pygin, m) {
             .value("false", troolean::FALSE)
             .value("true", troolean::TRUE)
             .value("unknown", troolean::UNKNOWN);
+
+    py::class_<Dist::CoefficientIterator>(m, "CoefficientIterator")
+            .def("next", &Dist::CoefficientIterator::next)
+            .def("rest", &Dist::CoefficientIterator::rest);
 
 
     #ifdef VERSION_INFO

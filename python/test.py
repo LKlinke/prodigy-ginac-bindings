@@ -25,3 +25,7 @@ if __name__ == "__main__":
 
     check_if_zero(dist)
     check_if_zero(pg.Dist("0"))
+
+    it = dist.coefficient_iterator(var)
+    print(f"first terms of dist are {it.next()}, {it.next()}, and {it.next()}")
+    print(f"remaining terms not consumed by iterator: {it.rest()}")

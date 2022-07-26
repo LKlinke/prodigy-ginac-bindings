@@ -370,6 +370,7 @@ namespace prodigy {
         EXPECTS(eExp.info(info_flags::nonnegint), "given expression must be non-neg int");
         int order = ex_to<numeric>(eExp).to_int();
         ex xExp;
+        // todo why not use parseWithKnownSymbols?
         if(!isKnownAsVar(x)) {
             xExp = symbol {x};
             Dist::registerAsVar(ex_to<symbol>(xExp));
@@ -378,6 +379,18 @@ namespace prodigy {
         }
         ex series = _gf.series(xExp, order);
         return Dist{series_to_poly(series)};
+    }
+
+    Dist Dist::CoefficientIterator::next() {
+        ex resGf = _rest.subs(_var == 0);
+        _rest = (_rest - resGf) * pow(_var, -1);
+        _rest = _rest.normal(); // for canceling common factors
+        return Dist(resGf);
+    }
+
+    Dist::CoefficientIterator Dist::coefficientIterator(const std::string &var) const {
+        EXPECTS(isKnownAsVar(var), "can only expand series in known variables");
+        return CoefficientIterator(*this, ex_to<symbol>(_vars.at(var)));
     }
 
     Dist Dist::substituteParam(const std::string &p, const std::string &val) const {

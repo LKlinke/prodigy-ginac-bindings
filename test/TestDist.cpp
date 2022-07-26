@@ -69,3 +69,10 @@ TEST(Dist, gfSize) {
     ASSERT_EQ(Dist("x").gfSize(), 1);
     ASSERT_EQ(Dist("x+y").gfSize(), 3);
 }
+
+TEST(Dist, coefficientIterator) {
+    Dist::resetSymbolCache();
+    Dist dist = Fac::geometric("x", "q");
+    Dist::CoefficientIterator it = dist.coefficientIterator("x");
+    ASSERT_EQ(it.next() + it.next() + it.next(), Dist("1-q - q^2 + q + q^2 - q^3", "q"));
+}
