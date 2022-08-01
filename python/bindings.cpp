@@ -63,6 +63,8 @@ PYBIND11_MODULE(pygin, m) {
     // global functions in python
     m.def("geometric", &DistributionFactory::geometric, "creates a geometric distribution")
     .def("uniform", &DistributionFactory::uniform, "creates a uniform distribution")
+    .def("dirac", &DistributionFactory::dirac, "creates a Dirac distribution (point mass)")
+    .def("catalan", &DistributionFactory::catalan, "creates a Catalan distribution (runtime distribution of 1D random walk)")
     .def("is_known_as_var", [](const string& x) { return Dist::isKnownAsVar(x); })
     .def("is_known_as_param", [](const string& x) { return Dist::isKnownAsParam(x); })
     .def("reset_symbol_cache", &Dist::resetSymbolCache);

@@ -49,4 +49,36 @@ namespace prodigy {
         return Dist(gf);
     }
 
+    Dist DistributionFactory::dirac(const std::string &x, const std::string &n) {
+        EXPECTS(!Dist::isKnownAsParam(x), "given variable " + x + " was previously declared a parameter");
+        EXPECTS(!Dist::isKnownAsVar(n), "given parameter " + n + " was previously declared a variable");
+        ex xExp = Dist::parseWithKnownSymbs(x);
+        ex nExp = Dist::parseWithKnownSymbs(n);
+        EXPECTS(is_a<symbol>(xExp), "variable of Dirac distr must be a symbol, got " + x);
+        EXPECTS(is_a<symbol>(nExp) || nExp.info(info_flags::nonnegint), "parameter of Dirac distribution must be a non-neg int or a symbol, got " + n);
+        // register variable/parameters in case we don't know them yet
+        if(is_a<symbol>(nExp) && !Dist::isKnownAsParam(n)) {
+            Dist::registerAsParam(ex_to<symbol>(nExp));
+        }
+        if(!Dist::isKnownAsVar(x)) Dist::registerAsVar(ex_to<symbol>(xExp));
+        ex gf = pow(xExp, nExp);
+        return Dist(gf);
+    }
+
+    Dist DistributionFactory::catalan(const std::string &x, const std::string &p) {
+        EXPECTS(!Dist::isKnownAsParam(x), "given variable " + x + " was previously declared a parameter");
+        EXPECTS(!Dist::isKnownAsVar(p), "given parameter " + p + " was previously declared a variable");
+        ex xExp = Dist::parseWithKnownSymbs(x);
+        ex pExp = Dist::parseWithKnownSymbs(p);
+        EXPECTS(is_a<symbol>(xExp), "variable of Catalan distr must be a symbol, got " + x);
+        EXPECTS(is_a<symbol>(pExp) || pExp.info(info_flags::positive), "parameter of Catalan distribution must be a positive real or a symbol, got " + p);
+        // register variable/parameters in case we don't know them yet
+        if(is_a<symbol>(pExp) && !Dist::isKnownAsParam(p)) {
+            Dist::registerAsParam(ex_to<symbol>(pExp));
+        }
+        if(!Dist::isKnownAsVar(x)) Dist::registerAsVar(ex_to<symbol>(xExp));
+        ex gf = (1 - sqrt(1 - 4 * pExp * (1-pExp) * xExp)) / (2 * pExp);
+        return Dist(gf);
+    }
+
 } // namespace prodigy

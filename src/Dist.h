@@ -241,8 +241,9 @@ namespace prodigy {
         private:
             ex _rest;
             symbol _var;
+            int _n;
         public:
-            CoefficientIterator(Dist dist, symbol var) : _rest(std::move(dist._gf)), _var(std::move(var)) {}
+            CoefficientIterator(Dist dist, symbol var) : _rest(std::move(dist._gf)), _var(std::move(var)), _n(1) {}
             Dist next();
             Dist rest() const { return Dist(_rest); }
         };

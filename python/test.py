@@ -29,3 +29,7 @@ if __name__ == "__main__":
     it = dist.coefficient_iterator(var)
     print(f"first terms of dist are {it.next()}, {it.next()}, and {it.next()}")
     print(f"remaining terms not consumed by iterator: {it.rest()}")
+
+    dist = pg.catalan("y", "1/2")
+    it = dist.coefficient_iterator("y");
+    print(f"{it.next()}, {it.next()}, {it.next()}, {it.next()}, {it.next()}, {it.next()}, {it.rest()}")

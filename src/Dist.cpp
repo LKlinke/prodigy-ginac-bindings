@@ -382,10 +382,11 @@ namespace prodigy {
     }
 
     Dist Dist::CoefficientIterator::next() {
-        ex resGf = _rest.subs(_var == 0);
-        _rest = (_rest - resGf) * pow(_var, -1);
-        _rest = _rest.normal(); // for canceling common factors
-        return Dist(resGf);
+        ex nextTerm = series_to_poly(_rest.series(_var == 0, _n));
+        _n++;
+        _rest = (_rest - nextTerm).normal();
+        ex nextCoeff = nextTerm.subs(_var == 1);
+        return Dist(nextCoeff);
     }
 
     Dist::CoefficientIterator Dist::coefficientIterator(const std::string &var) const {
