@@ -224,6 +224,17 @@ namespace prodigy {
         }
     }
 
+    troolean Dist::isPolynomial(const std::vector<std::string>& vars) const {
+        for (const auto &var : vars){
+            EXPECTS(!isKnownAsParam(var), "given symbol is considered a parameter");
+            // an expression is a polynomial in a list of variables iff it is a polynomial in all individual variables
+            if(!_gf.is_polynomial(_vars.at(var))) {
+                return troolean::FALSE;
+            }
+        }
+        return troolean::TRUE;
+    }
+
 
     ex Dist::E(const std::string &x) const {
         EXPECTS(!isKnownAsParam(x), "given symbol is considered a parameter");

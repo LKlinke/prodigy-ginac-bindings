@@ -198,6 +198,12 @@ namespace prodigy {
          */
         troolean isFiniteSupport() const;
 
+        /**
+         * determines whether *this is a polynomial in the given variables
+         * can be used as a heuristic for finite support
+         */
+        troolean isPolynomial(const std::vector<std::string>& vars) const;
+
         /*
          * update distribution according to assignment x := e
          */

@@ -58,7 +58,8 @@ PYBIND11_MODULE(pygin, m) {
             .def(py::self * py::self)
             .def(py::self + py::self)
             .def(py::self - py::self)
-            .def("__repr__", [](const Dist& dist) { return toString(dist); });
+            .def("__repr__", [](const Dist& dist) { return toString(dist); })
+            .def("is_polynomial", &Dist::isPolynomial);
 
     // global functions in python
     m.def("geometric", &DistributionFactory::geometric, "creates a geometric distribution")
