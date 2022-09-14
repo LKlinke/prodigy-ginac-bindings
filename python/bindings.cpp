@@ -59,7 +59,19 @@ PYBIND11_MODULE(pygin, m) {
             .def(py::self + py::self)
             .def(py::self - py::self)
             .def("__repr__", [](const Dist& dist) { return toString(dist); })
-            .def("is_polynomial", &Dist::isPolynomial);
+            .def("is_polynomial", &Dist::isPolynomial)
+            .def("get_terms", [](const Dist& dist, const std::set<string>& vars) {
+                std::vector<std::pair<std::string, std::map<std::string, int>>> res;
+                for(auto state : dist.getTerms(vars)) {
+                    auto prob = toString(state.prob);
+                    std::map<std::string, int> map;
+                    for(auto pair : state.vals) {
+                        map[toString(pair.first)] = pair.second;
+                    }
+                    res.push_back(std::pair<std::string, std::map<std::string, int>>(prob, map));
+                }
+                return res;
+            });
 
     // global functions in python
     m.def("geometric", &DistributionFactory::geometric, "creates a geometric distribution")

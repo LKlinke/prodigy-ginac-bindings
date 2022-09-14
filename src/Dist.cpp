@@ -224,15 +224,59 @@ namespace prodigy {
         }
     }
 
-    troolean Dist::isPolynomial(const std::vector<std::string>& vars) const {
+    troolean Dist::isPolynomial(const std::set<std::string>& vars) const {
         for (const auto &var : vars){
             EXPECTS(!isKnownAsParam(var), "given symbol is considered a parameter");
             // an expression is a polynomial in a list of variables iff it is a polynomial in all individual variables
-            if(!_gf.is_polynomial(_vars.at(var))) {
+            ex expr;
+            if (isKnownAsVar(var)) {
+                expr = _vars.at(var);
+            } else {
+                expr = symbol(var);
+            }
+            if(!_gf.is_polynomial(expr)) {
                 return troolean::FALSE;
             }
         }
         return troolean::TRUE;
+    }
+
+    std::vector<Dist::State> Dist::getTerms(const std::set<std::string>& vars) const {
+        EXPECTS(this->isPolynomial(vars) == troolean::TRUE, "can only iterate over terms of a finite polynomial");
+        std::vector<ex> varEx;
+        varEx.reserve(vars.size());
+        for(const auto &var : vars) {
+            EXPECTS(!isKnownAsParam(var), "given symbol is considered a parameter");
+            if(isKnownAsVar(var)) {
+                varEx.push_back(_vars.at(var));
+            } else {
+                varEx.push_back(symbol(var));
+            }
+        }
+
+        auto handleProduct = [&](ex &term) {
+            Dist::State state;
+            for(ex var : varEx) {
+                state.vals.push_back(std::pair<ex, int>(var, ex_to<numeric>(term.degree(var)).to_int()));
+                term = term.subs(var == 1);
+            }
+            state.prob = term;
+            return state;
+        };
+
+        ex poly = _gf.expand();
+        auto nops = poly.nops();
+        std::vector<Dist::State> res;
+        res.reserve(nops);
+        if(!is_a<add>(poly)) {
+            res.push_back(handleProduct(poly));
+            return res;
+        }
+        for(auto i = 0; i < nops; i++) {
+            ex term = poly.op(i);
+            res.push_back(handleProduct(term));
+        }
+        return res;
     }
 
 

@@ -202,7 +202,16 @@ namespace prodigy {
          * determines whether *this is a polynomial in the given variables
          * can be used as a heuristic for finite support
          */
-        troolean isPolynomial(const std::vector<std::string>& vars) const;
+        troolean isPolynomial(const std::set<std::string>& vars) const;
+
+        typedef struct State {
+            ex prob;
+            std::vector<std::pair<ex, int>> vals;
+        } State;
+        /**
+         * returns a list of all terms if *this is a polynomial
+         */
+        std::vector<State> getTerms(const std::set<std::string>& vars) const;
 
         /*
          * update distribution according to assignment x := e
