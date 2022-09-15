@@ -71,7 +71,8 @@ PYBIND11_MODULE(pygin, m) {
                     res.push_back(std::pair<std::string, std::map<std::string, int>>(prob, map));
                 }
                 return res;
-            });
+            })
+            .def("arithmetic_progression", &Dist::arithmeticProgression);
 
     // global functions in python
     m.def("geometric", &DistributionFactory::geometric, "creates a geometric distribution")

@@ -279,6 +279,28 @@ namespace prodigy {
         return res;
     }
 
+    std::vector<Dist> Dist::arithmeticProgression(const std::string &var, const std::string &modulus) const {
+        ex exMod = parseWithKnownSymbs(modulus);
+        EXPECTS(is_a<numeric>(exMod), "given modulus is not a number");
+        EXPECTS(ex_to<numeric>(exMod).is_pos_integer(), "given modulus is not a positive integer");
+        ex exVar = parseWithKnownSymbs(var);
+        EXPECTS(is_a<symbol>(exVar), "given variable is not a symbol");
+        EXPECTS(!isKnownAsParam(var), "given variable is known as a parameter");
+
+        ex root = exp(2 * Pi * I / exMod);
+        std::vector<Dist> res;
+        res.reserve(ex_to<numeric>(exMod).to_int());
+        for(int rem = 0; rem < exMod; rem++) {
+            ex psum = 0;
+            for(int m = 0; m < exMod; m++) {
+                psum += pow(root, (-m * rem)) * 
+                    _gf.subs(exVar == pow(root, m) * exVar);
+            }
+            res.push_back(Dist(1/exMod*psum));
+        }
+        return res;
+    }
+
 
     ex Dist::E(const std::string &x) const {
         EXPECTS(!isKnownAsParam(x), "given symbol is considered a parameter");

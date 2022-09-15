@@ -213,6 +213,12 @@ namespace prodigy {
          */
         std::vector<State> getTerms(const std::set<std::string>& vars) const;
 
+        /**
+         * creates a vector where at index i, the given variable is congruent
+         * i modulo the given modulus
+         */
+        std::vector<Dist> arithmeticProgression(const std::string &var, const std::string &modulus) const;
+
         /*
          * update distribution according to assignment x := e
          */
