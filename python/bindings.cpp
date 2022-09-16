@@ -72,7 +72,14 @@ PYBIND11_MODULE(pygin, m) {
                 }
                 return res;
             })
-            .def("arithmetic_progression", &Dist::arithmeticProgression);
+            .def("arithmetic_progression", &Dist::arithmeticProgression)
+            .def("get_symbols", [](const Dist &dist) {
+                std::vector<string> res;
+                for(auto sym : dist.getSymbols()) {
+                    res.push_back(toString(sym));
+                }
+                return res;
+            });
 
     // global functions in python
     m.def("geometric", &DistributionFactory::geometric, "creates a geometric distribution")

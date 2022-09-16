@@ -219,6 +219,11 @@ namespace prodigy {
          */
         std::vector<Dist> arithmeticProgression(const std::string &var, const std::string &modulus) const;
 
+        /**
+         * returns all symbols that occur in this distribution (variables and parameters)
+         */
+        std::vector<symbol> getSymbols() const;
+
         /*
          * update distribution according to assignment x := e
          */

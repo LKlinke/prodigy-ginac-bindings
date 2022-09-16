@@ -293,10 +293,20 @@ namespace prodigy {
         for(int rem = 0; rem < exMod; rem++) {
             ex psum = 0;
             for(int m = 0; m < exMod; m++) {
-                psum += pow(root, (-m * rem)) * 
+                psum += pow(root, -m * rem) * 
                     _gf.subs(exVar == pow(root, m) * exVar);
             }
-            res.push_back(Dist(1/exMod*psum));
+            res.push_back(Dist(psum/exMod));
+        }
+        return res;
+    }
+
+    std::vector<symbol> Dist::getSymbols() const {
+        std::vector<symbol> res;
+        for(auto i = _gf.preorder_begin(); i != _gf.preorder_end(); i++) {
+            if(is_a<symbol>(*i)) {
+                res.push_back(ex_to<symbol>(*i));
+            }
         }
         return res;
     }
