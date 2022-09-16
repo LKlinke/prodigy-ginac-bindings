@@ -88,7 +88,19 @@ PYBIND11_MODULE(pygin, m) {
     .def("catalan", &DistributionFactory::catalan, "creates a Catalan distribution (runtime distribution of 1D random walk)")
     .def("is_known_as_var", [](const string& x) { return Dist::isKnownAsVar(x); })
     .def("is_known_as_param", [](const string& x) { return Dist::isKnownAsParam(x); })
-    .def("reset_symbol_cache", &Dist::resetSymbolCache);
+    .def("reset_symbol_cache", &Dist::resetSymbolCache)
+    .def("find_symbols", [](const std::string &s) {
+        // this function does not use the symbol registry, as opposed to Dist::getSymbols()
+        GiNaC::parser p;
+        ex parsed = p(s);
+        std::vector<std::string> res;
+        for(auto i = parsed.preorder_begin(); i != parsed.preorder_end(); i++) {
+            if(GiNaC::is_a<GiNaC::symbol>(*i)) {
+                res.push_back(toString(*i));
+            }
+        }
+        return res;
+    });
 
     py::enum_<troolean>(m, "troolean")
             .value("false", troolean::FALSE)
