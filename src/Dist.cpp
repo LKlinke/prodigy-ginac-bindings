@@ -95,6 +95,21 @@ namespace prodigy {
         }
     }
 
+    std::string Dist::getFreshSymbol() {
+        uint i = 0;
+        do {
+            std::stringstream s;
+            s << "sym_" << i;
+            std::string str = s.str();
+            if(!isKnownAsParam(str) && !isKnownAsVar(str)) {
+                return str;
+            }
+            i++;
+        } while (i > 0);
+
+        throw std::overflow_error("cannot generate more fresh symbols");
+    }
+
 
 /* public interface of dist */
 

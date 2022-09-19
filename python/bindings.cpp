@@ -100,7 +100,8 @@ PYBIND11_MODULE(pygin, m) {
             }
         }
         return res;
-    });
+    })
+    .def("get_fresh_symbol", Dist::getFreshSymbol);
 
     py::enum_<troolean>(m, "troolean")
             .value("false", troolean::FALSE)

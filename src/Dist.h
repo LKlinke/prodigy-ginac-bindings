@@ -74,6 +74,12 @@ namespace prodigy {
         static bool isKnownAsVar(const std::string& s);
         static bool isKnownAsParam(const std::string& s);
 
+        /**
+         * returns a symbol name that is registered as neither a parameter nor a variable, nor contained in the exclude parameter
+         * does NOT register the new symbol in any way
+         */
+        static std::string getFreshSymbol();
+
     private:
 
         static bool isSymbKnown(const symbol& s);
