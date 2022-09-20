@@ -95,13 +95,14 @@ namespace prodigy {
         }
     }
 
-    std::string Dist::getFreshSymbol() {
+    std::string Dist::getFreshVariable() {
         uint i = 0;
         do {
             std::stringstream s;
             s << "sym_" << i;
             std::string str = s.str();
             if(!isKnownAsParam(str) && !isKnownAsVar(str)) {
+                registerAsVar(symbol(str));
                 return str;
             }
             i++;
@@ -437,6 +438,69 @@ namespace prodigy {
             EXPECTS(false, "requested update operation is not supported");
         }
         return Dist{res};
+    }
+
+    Dist Dist::updateVar(const std::string &updatedVar, const std::string &assignVar) const {
+        EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
+        EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
+        registerAllUnknownSymbsAsVars(symbol(updatedVar));
+        if(updatedVar == assignVar) {
+            return *this;
+        }
+
+        EXPECTS(!isKnownAsParam(assignVar), "given rhs is a parameter");
+        ex rhs = parseWithKnownSymbs(assignVar);
+        ex lhs = _vars.at(updatedVar);
+        if(is_a<symbol>(rhs)) {
+            return Dist(_gf.subs(lhs == 1).subs(rhs == lhs * rhs));
+        } else {
+            return Dist(_gf.subs(lhs == 1) * pow(lhs, rhs));
+        }
+    }
+
+    Dist Dist::updateSum(const std::string &updatedVar, const std::string &firstSummand, const std::string secondSummand) const {
+        EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
+        EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
+        registerAllUnknownSymbsAsVars(symbol(updatedVar));
+        ex lhs = parseWithKnownSymbs(updatedVar);
+        ex sum1 = parseWithKnownSymbs(firstSummand);
+        ex sum2 = parseWithKnownSymbs(secondSummand);
+
+        // we add two variables
+        if(isKnownAsVar(firstSummand) && isKnownAsVar(secondSummand)) {
+            if(sum2 == lhs) {
+                ex tmp = sum1;
+                sum1 = sum2;
+                sum2 = tmp;
+            }
+            if(sum1 == lhs) {
+                if(sum2 == lhs) {
+                    return Dist(_gf.subs(lhs == pow(lhs, 2)));
+                } else {
+                    return Dist(_gf.subs(sum2 == sum2*lhs));
+                }
+            } else {
+                return Dist(_gf.subs(lhs == 1).subs(sum1 == sum1 * lhs).subs(sum2 == sum2 * lhs));
+            }
+        }
+        // we add a variable and a literal / parameter
+        else if(isKnownAsVar(firstSummand) || isKnownAsVar(secondSummand)) {
+            ex var = sum1;
+            ex lit = sum2;
+            if(isKnownAsVar(secondSummand)) {
+                var = sum2;
+                lit = sum1;
+            }
+            ex res = _gf;
+            if(var != lhs) {
+                res = res.subs(lhs == 1).subs(var == lhs * var);
+            }
+            return Dist(res * pow(lhs, lit));
+        }
+        // we add two literals / parameters
+        else {
+            return Dist(_gf.subs(lhs == 1) * pow(lhs, sum1 + sum2));
+        }
     }
 
     Dist Dist::updateIid(const std::string &x, const Dist &d, const std::string &y) const {

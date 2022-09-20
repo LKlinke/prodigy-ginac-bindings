@@ -79,7 +79,9 @@ PYBIND11_MODULE(pygin, m) {
                     res.push_back(toString(sym));
                 }
                 return res;
-            });
+            })
+            .def("update_var", &Dist::updateVar)
+            .def("update_sum", &Dist::updateSum);
 
     // global functions in python
     m.def("geometric", &DistributionFactory::geometric, "creates a geometric distribution")
@@ -91,8 +93,12 @@ PYBIND11_MODULE(pygin, m) {
     .def("reset_symbol_cache", &Dist::resetSymbolCache)
     .def("find_symbols", [](const std::string &s) {
         // this function does not use the symbol registry, as opposed to Dist::getSymbols()
+        // to use the modulo operator %, we need to replace it with something ginac can parse
+        std::string str = s;
+        std::replace(str.begin(), str.end(), '%', '+');
+
         GiNaC::parser p;
-        ex parsed = p(s);
+        ex parsed = p(str);
         std::vector<std::string> res;
         for(auto i = parsed.preorder_begin(); i != parsed.preorder_end(); i++) {
             if(GiNaC::is_a<GiNaC::symbol>(*i)) {
@@ -101,7 +107,7 @@ PYBIND11_MODULE(pygin, m) {
         }
         return res;
     })
-    .def("get_fresh_symbol", Dist::getFreshSymbol);
+    .def("get_fresh_variable", Dist::getFreshVariable);
 
     py::enum_<troolean>(m, "troolean")
             .value("false", troolean::FALSE)

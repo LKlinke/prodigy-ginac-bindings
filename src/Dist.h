@@ -76,9 +76,9 @@ namespace prodigy {
 
         /**
          * returns a symbol name that is registered as neither a parameter nor a variable, nor contained in the exclude parameter
-         * does NOT register the new symbol in any way
+         * also registers the symbol as a variable
          */
-        static std::string getFreshSymbol();
+        static std::string getFreshVariable();
 
     private:
 
@@ -234,6 +234,17 @@ namespace prodigy {
          * update distribution according to assignment x := e
          */
         Dist update(const std::string& x, const std::string& e) const;
+
+        /**
+         * performs the update updatedVar := assignVar
+         * assignVar may be a variable or an integer (not a parameter)
+         */
+        Dist updateVar(const std::string &updatedVar, const std::string &assignVar) const;
+
+        /**
+         * applies the update updatedVar := firstSummand + secondSummand to *this
+         */
+        Dist updateSum(const std::string &updatedVar, const std::string &firstSummand, const std::string secondSummand) const;
     private:
         Dist _update(const symbol& x, const ex& e) const;
         Dist _incrAssgn(const symbol& x, const ex& term) const;
