@@ -64,11 +64,7 @@ PYBIND11_MODULE(pygin, m) {
                 std::vector<std::pair<std::string, std::map<std::string, int>>> res;
                 for(auto state : dist.getTerms(vars)) {
                     auto prob = toString(state.prob);
-                    std::map<std::string, int> map;
-                    for(auto pair : state.vals) {
-                        map[toString(pair.first)] = pair.second;
-                    }
-                    res.push_back(std::pair<std::string, std::map<std::string, int>>(prob, map));
+                    res.push_back(std::pair<std::string, std::map<std::string, int>>(prob, state.vals));
                 }
                 return res;
             })
@@ -81,7 +77,8 @@ PYBIND11_MODULE(pygin, m) {
                 return res;
             })
             .def("update_var", &Dist::updateVar)
-            .def("update_sum", &Dist::updateSum);
+            .def("update_sum", &Dist::updateSum)
+            .def("update_product", &Dist::updateProduct);
 
     // global functions in python
     m.def("geometric", &DistributionFactory::geometric, "creates a geometric distribution")

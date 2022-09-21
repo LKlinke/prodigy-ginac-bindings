@@ -273,7 +273,7 @@ namespace prodigy {
         auto handleProduct = [&](ex &term) {
             Dist::State state;
             for(ex var : varEx) {
-                state.vals.push_back(std::pair<ex, int>(var, ex_to<numeric>(term.degree(var)).to_int()));
+                state.vals[ex_to<symbol>(var).get_name()] = ex_to<numeric>(term.degree(var)).to_int();
                 term = term.subs(var == 1);
             }
             state.prob = term;
@@ -500,6 +500,84 @@ namespace prodigy {
         // we add two literals / parameters
         else {
             return Dist(_gf.subs(lhs == 1) * pow(lhs, sum1 + sum2));
+        }
+    }
+
+    Dist Dist::updateProduct(const std::string &updatedVar, const std::string &firstFactor, const std::string secondFactor, 
+            const std::set<std::string> variables, const bool finite) const {
+        EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
+        EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
+        EXPECTS(!isKnownAsParam(firstFactor) && !isKnownAsParam(secondFactor), "cannot perform multiplication of variables");
+        registerAllUnknownSymbsAsVars(symbol(updatedVar));
+        ex lhs = parseWithKnownSymbs(updatedVar);
+        ex fac1 = parseWithKnownSymbs(firstFactor);
+        ex fac2 = parseWithKnownSymbs(secondFactor);
+
+        // we multiply two variables
+        if(isKnownAsVar(firstFactor) && isKnownAsVar(secondFactor)) {
+            // infinite distribution
+            if(!finite) {
+                auto marginal_l = this->marginal(firstFactor);
+                auto finite_left = marginal_l.isPolynomial({firstFactor}) == troolean::TRUE;
+                auto marginal_r = this->marginal(secondFactor);
+                auto finite_right = marginal_r.isPolynomial({secondFactor}) == troolean::TRUE;
+
+                EXPECTS(finite_left || finite_right, "cannot perform multiplication of two variables with infinite range");
+
+                Dist finite;
+                std::string finite_var, infinite_var;
+                bool other_finite;
+                if(finite_left) {
+                    finite = marginal_l;
+                    finite_var = firstFactor;
+                    infinite_var = secondFactor;
+                    other_finite = finite_right;
+                } else {
+                    finite = marginal_r;
+                    finite_var = secondFactor;
+                    infinite_var = firstFactor;
+                    other_finite = finite_left; // == false
+                }
+                ex res = 0;
+                for(auto state : finite.getTerms({finite_var})) {
+                    // state.vals contains only one item
+                    auto val = std::to_string(state.vals[finite_var]);
+                    res += this->filterEq(finite_var, val)
+                        .updateProduct(updatedVar, val, infinite_var, variables, other_finite)._gf;
+                }
+                return Dist(res);
+            }
+            // finite distribution
+            else {
+                ex res = _gf;
+                for(auto state : this->getTerms(variables)) {
+                    ex term = parseWithKnownSymbs(state.toString());
+                    res -= term;
+                    term = term.subs(lhs == 1) * pow(lhs, state.vals.at(firstFactor) * state.vals.at(secondFactor));
+                    res += term;
+                }
+                return Dist(res);
+            }
+        }
+        // we multiply a variable with a literal
+        else if(isKnownAsVar(firstFactor) || isKnownAsVar(secondFactor)) {
+            ex var, lit;
+            if(isKnownAsVar(firstFactor)) {
+                var = fac1;
+                lit = fac2;
+            } else {
+                var = fac2;
+                lit = fac1;
+            }
+            if(var == lhs) {
+                return Dist(_gf.subs(lhs == pow(lhs, lit)));
+            } else {
+                return Dist(_gf.subs(lhs == 1).subs(var == var * pow(lhs, lit)));
+            }
+        }
+        // we multiply two literals
+        else {
+            return Dist(_gf.subs(lhs == 1) * pow(lhs, fac1 * fac2));
         }
     }
 

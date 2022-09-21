@@ -212,7 +212,16 @@ namespace prodigy {
 
         typedef struct State {
             ex prob;
-            std::vector<std::pair<ex, int>> vals;
+            std::map<std::string, int> vals;
+
+            std::string toString() const {
+                std::stringstream res;
+                res << prob;
+                for(auto item : vals) {
+                    res << '*' << item.first << '^' << item.second;
+                }
+                return res.str();
+            }
         } State;
         /**
          * returns a list of all terms if *this is a polynomial
@@ -245,6 +254,12 @@ namespace prodigy {
          * applies the update updatedVar := firstSummand + secondSummand to *this
          */
         Dist updateSum(const std::string &updatedVar, const std::string &firstSummand, const std::string secondSummand) const;
+
+        /**
+         * applies the update updatedVar := firstFactor * secondFactor to *this
+         */
+        Dist updateProduct(const std::string &updatedVar, const std::string &firstFactor, const std::string secondFactor, 
+            const std::set<std::string> variables, const bool finite) const;
     private:
         Dist _update(const symbol& x, const ex& e) const;
         Dist _incrAssgn(const symbol& x, const ex& term) const;
