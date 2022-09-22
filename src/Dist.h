@@ -266,6 +266,12 @@ namespace prodigy {
          * throws an exception if this might result in negative values
          */
         Dist updateSubtraction(const std::string updatedVar, const std::string subFrom, const std::string sub) const;
+
+        /**
+         * applies the update updatedVar := left % right to *this
+         */
+        Dist updateModulo(const std::string &updatedVar, const std::string &left, const std::string right, 
+            const std::set<std::string> variables, const bool finite) const;
     private:
         Dist _update(const symbol& x, const ex& e) const;
         Dist _incrAssgn(const symbol& x, const ex& term) const;

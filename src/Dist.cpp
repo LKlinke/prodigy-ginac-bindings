@@ -631,6 +631,71 @@ namespace prodigy {
         return dist;
     }
 
+    Dist Dist::updateModulo(const std::string &updatedVar, const std::string &left, const std::string right, 
+            const std::set<std::string> variables, const bool finite) const {
+        EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
+        EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
+        EXPECTS(!isKnownAsParam(left) && !isKnownAsParam(right), "cannot perform modulo of parameters");
+        registerAllUnknownSymbsAsVars(symbol(updatedVar));
+        ex lhs = parseWithKnownSymbs(updatedVar);
+
+        // on finite distributions, iterate over all states
+        if(finite) {
+            ex res = 0;
+            for(auto state : this->getTerms(variables)) {
+                numeric leftVar, rightVar;
+                if(isKnownAsVar(left)) {
+                    leftVar = state.vals.at(left);
+                } else {
+                    leftVar = ex_to<numeric>(parseWithKnownSymbs(left));
+                }
+                if(isKnownAsVar(right)) {
+                    rightVar = state.vals.at(right);
+                } else {
+                    rightVar = ex_to<numeric>(parseWithKnownSymbs(right));
+                }
+                res += parseWithKnownSymbs(state.toString()).subs(lhs == 1) * pow(lhs, mod(leftVar, rightVar));
+            }
+            return Dist(res);
+        }
+        // if the distribution is infinite and right is a variable, it needs to have finite range
+        else if(isKnownAsVar(right)) {
+            auto marginal_r = this->marginal(right);
+            // getTerms() performs the finiteness check
+            ex res = 0;
+            for(auto state : marginal_r.getTerms({right})) {
+                auto right_val = std::to_string(state.vals.at(right));
+                res += this->filterEq(right, right_val)
+                    .updateModulo(updatedVar, left, right_val, variables, finite)._gf;
+            }
+            return Dist(res);
+        }
+        // if left is a variable, it doesn't have to have finite range
+        else if(isKnownAsVar(left)) {
+            auto marginal_l = this->marginal(left);
+            ex res = 0;
+            if(marginal_l.isPolynomial({left}) == troolean::TRUE) {
+                for(auto state : marginal_l.getTerms({left})) {
+                    auto left_val = std::to_string(state.vals.at(left));
+                    res += this->filterEq(left, left_val)
+                        .updateModulo(updatedVar, left_val, right, variables, finite)._gf;
+                }
+            } else {
+                auto prog = this->arithmeticProgression(left, right);
+                for(int i = 0; i < prog.size(); i++) {
+                    res += prog.at(i)._gf.subs(lhs == 1) * pow(lhs, i);
+                }
+            }
+            return Dist(res);
+        }
+        // if both are not variables, simply compute the result
+        else {
+            numeric mod1 = ex_to<numeric>(parseWithKnownSymbs(left));
+            numeric mod2 = ex_to<numeric>(parseWithKnownSymbs(right));
+            return this->updateVar(updatedVar, std::to_string(GiNaC::to_int(mod(mod1, mod2))));
+        }
+    }
+
     Dist Dist::updateIid(const std::string &x, const Dist &d, const std::string &y) const {
         EXPECTS(!isKnownAsParam(x) && !isKnownAsParam(y), "given symbol is considered a parameter, not a variable");
         EXPECTS(d.mass() == 1, "the distribution wrapped into iid must not be a sub distribution");
