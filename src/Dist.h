@@ -272,6 +272,12 @@ namespace prodigy {
          */
         Dist updateModulo(const std::string &updatedVar, const std::string &left, const std::string right, 
             const std::set<std::string> variables, const bool finite) const;
+
+        /**
+         * applies the update updatedVar := numerator / denominator to *this
+         * throws an exception if this might result in a non-integer value
+         */
+        Dist updateDivision(const std::string updatedVar, const std::string numerator, const std::string denominator) const;
     private:
         Dist _update(const symbol& x, const ex& e) const;
         Dist _incrAssgn(const symbol& x, const ex& term) const;

@@ -696,6 +696,65 @@ namespace prodigy {
         }
     }
 
+    Dist Dist::updateDivision(const std::string updatedVar, const std::string numerator, const std::string denominator) const {
+        EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
+        EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
+        EXPECTS(!isKnownAsParam(numerator) && !isKnownAsParam(denominator), "cannot perform division of parameters");
+        registerAllUnknownSymbsAsVars(symbol(updatedVar));
+        ex lhs = parseWithKnownSymbs(updatedVar);
+        ex div1 = parseWithKnownSymbs(numerator);
+        ex div2 = parseWithKnownSymbs(denominator);
+
+        Dist marginal_l, marginal_r;
+        if(isKnownAsVar(numerator)) {
+            marginal_l = this->marginal(numerator);
+            EXPECTS(marginal_l.isPolynomial({numerator}) == troolean::TRUE, "numerator must have a finite marginal");
+        } else {
+            marginal_l = Dist(div1);
+        }
+        if(isKnownAsVar(denominator)) {
+            marginal_r = this->marginal(denominator);
+            EXPECTS(marginal_r.isPolynomial({numerator}) == troolean::TRUE, "denominator must have a finite marginal");
+        } else {
+            marginal_r = Dist(div2);
+        }
+
+        ex res = 0;
+        if(isKnownAsVar(numerator)) {
+            for(auto state_l : marginal_l.getTerms({numerator})) {
+                if(isKnownAsVar(denominator)) {
+                    for(auto state_r : marginal_r.getTerms({denominator})) {
+                        int val_l = state_l.vals.at(numerator);
+                        int val_r = state_r.vals.at(denominator);
+                        ex x = this->filterEq(numerator, std::to_string(val_l))
+                            .filterEq(denominator, std::to_string(val_r))._gf;
+                        EXPECTS(mod(val_l, val_r) == 0 || x == 0, "numerator is not always divisible by denominator");
+                        res += x.subs(lhs == 1) * pow(lhs, val_l / val_r);
+                    }
+                } else {
+                    int val_l = state_l.vals.at(numerator);
+                    ex x = this->filterEq(numerator, std::to_string(val_l))._gf;
+                    EXPECTS(mod(val_l, ex_to<numeric>(div2)) == 0 || x == 0, "numerator is not always divisible by denominator");
+                    res += x.subs(lhs == 1) * pow(lhs, val_l / div2);
+                }
+            }
+        } else {
+            if(isKnownAsVar(denominator)) {
+                for(auto state_r : marginal_r.getTerms({denominator})) {
+                    int val_r = state_r.vals.at(denominator);
+                    ex x = this->filterEq(denominator, std::to_string(val_r))._gf;
+                    EXPECTS(mod(ex_to<numeric>(div1), val_r) == 0 || x == 0, "numerator is not always divisible by denominator");
+                    res += x.subs(lhs == 1) * pow(lhs, div1 / val_r);
+                } 
+            } else {
+                EXPECTS(mod(ex_to<numeric>(div1), ex_to<numeric>(div2)) == 0, "numerator is not always divisible by denominator");
+                res = _gf.subs(lhs == 1) * pow(lhs, div1 / div2);
+            }
+        }
+
+        return Dist(res);
+    }
+
     Dist Dist::updateIid(const std::string &x, const Dist &d, const std::string &y) const {
         EXPECTS(!isKnownAsParam(x) && !isKnownAsParam(y), "given symbol is considered a parameter, not a variable");
         EXPECTS(d.mass() == 1, "the distribution wrapped into iid must not be a sub distribution");
