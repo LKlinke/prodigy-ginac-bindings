@@ -507,7 +507,7 @@ namespace prodigy {
             const std::set<std::string> variables, const bool finite) const {
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
         EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
-        EXPECTS(!isKnownAsParam(firstFactor) && !isKnownAsParam(secondFactor), "cannot perform multiplication of variables");
+        EXPECTS(!isKnownAsParam(firstFactor) && !isKnownAsParam(secondFactor), "cannot perform multiplication of parameters");
         registerAllUnknownSymbsAsVars(symbol(updatedVar));
         ex lhs = parseWithKnownSymbs(updatedVar);
         ex fac1 = parseWithKnownSymbs(firstFactor);
@@ -579,6 +579,56 @@ namespace prodigy {
         else {
             return Dist(_gf.subs(lhs == 1) * pow(lhs, fac1 * fac2));
         }
+    }
+
+    Dist Dist::updateSubtraction(const std::string updatedVar, const std::string subFrom, const std::string sub) const {
+        EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
+        EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
+        registerAllUnknownSymbsAsVars(symbol(updatedVar));
+        ex lhs = parseWithKnownSymbs(updatedVar);
+        ex sub1 = parseWithKnownSymbs(subFrom);
+        ex sub2 = parseWithKnownSymbs(sub);
+
+        ex res = _gf;
+        // we subtract a variable from another variable
+        if(isKnownAsVar(sub) && isKnownAsVar(subFrom)) {
+            if(sub2 == lhs) {
+                if(sub1 == lhs) {
+                    res = _gf.subs(lhs == 1);
+                } else {
+                    res = _gf.subs(lhs == pow(lhs, -1)).subs(sub1 == sub1 * lhs);
+                }
+            } else {
+                if(sub1 != lhs) {
+                    res = res.subs(lhs == 1).subs(sub1 == sub1 * lhs);
+                }
+                res = res.subs(sub2 == sub2 * pow(lhs, -1));
+            }
+        }
+        //we subtract a literal / parameter from a variable
+        else if(isKnownAsVar(subFrom)) {
+            if(lhs != sub1) {
+                res = res.subs(lhs == 1).subs(sub1 == sub1 * lhs);
+            }
+            res = res * pow(lhs, -sub2);
+        }
+        // we subtract a variable from a literal / parameter
+        else if(isKnownAsVar(sub)) {
+            if(sub2 == lhs) {
+                res = _gf.subs(lhs == pow(lhs, -1)) * pow(lhs, sub1);
+            } else {
+                res = (_gf.subs(lhs == 1) * pow(lhs, sub1)).subs(sub2 == sub2 * pow(lhs, -1));
+            }
+        }
+        // we subtract two literals / parameters from each other
+        else {
+            res = _gf.subs(lhs == 1) * pow(lhs, sub1 - sub2);
+        }
+
+        auto dist = Dist(res);
+        // test for negative values (this throws an exception in that case)
+        ex testFun = dist.marginal({updatedVar})._gf.subs(lhs == 0);
+        return dist;
     }
 
     Dist Dist::updateIid(const std::string &x, const Dist &d, const std::string &y) const {

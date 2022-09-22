@@ -260,6 +260,12 @@ namespace prodigy {
          */
         Dist updateProduct(const std::string &updatedVar, const std::string &firstFactor, const std::string secondFactor, 
             const std::set<std::string> variables, const bool finite) const;
+
+        /**
+         * applies the update updatedVar := subFrom - sub to *this
+         * throws an exception if this might result in negative values
+         */
+        Dist updateSubtraction(const std::string updatedVar, const std::string subFrom, const std::string sub) const;
     private:
         Dist _update(const symbol& x, const ex& e) const;
         Dist _incrAssgn(const symbol& x, const ex& term) const;
