@@ -95,19 +95,17 @@ PYBIND11_MODULE(pygin, m) {
         // this function does not use the symbol registry, as opposed to Dist::getSymbols()
         // to use the modulo operator %, we need to replace it with something ginac can parse
         std::string str = s;
-        std::replace(str.begin(), str.end(), '%', '+');
+        std::replace(str.begin(), str.end(), '%', '/');
 
         GiNaC::parser p;
         ex parsed = p(str);
         std::vector<std::string> res;
-        for(auto i = parsed.preorder_begin(); i != parsed.preorder_end(); i++) {
-            if(GiNaC::is_a<GiNaC::symbol>(*i)) {
-                res.push_back(toString(*i));
-            }
+        for(auto i : p.get_syms()) {
+            res.push_back(i.first);
         }
         return res;
     })
-    .def("get_fresh_variable", Dist::getFreshVariable);
+    .def("get_fresh_variable", &Dist::getFreshVariable);
 
     py::enum_<troolean>(m, "troolean")
             .value("false", troolean::FALSE)

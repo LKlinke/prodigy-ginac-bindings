@@ -165,7 +165,7 @@ namespace prodigy {
 
     Dist Dist::marginal(const std::string &x) const {
         EXPECTS(!isKnownAsParam(x), "given symbol is considered a parameter");
-        ex res{_gf};
+        ex res{_gf.normal()};
         for (const auto &v : _vars) {
             if (v.first != x) {
                 res = res.subs(v.second == 1);
@@ -178,7 +178,7 @@ namespace prodigy {
         for (const auto &v : vars) {
             EXPECTS(!isKnownAsParam(v), "given symbol is considered a parameter");
         }
-        ex res{_gf};
+        ex res{_gf.normal()};
         // go over all variables v we currently know
         for (const auto &v : _vars) {
             // if v is not in the given list vars then project it away
@@ -334,7 +334,7 @@ namespace prodigy {
             Dist marg = marginal(x);
             ex res{marg._gf};
             const auto &xSym = ex_to<symbol>(_vars.at(x));
-            return res.diff(xSym).subs(xSym == 1);
+            return res.diff(xSym).normal().subs(xSym == 1);
         } else {
             // x is some string, neither a known param nor a known var
             parser pars;
@@ -454,7 +454,7 @@ namespace prodigy {
         if(is_a<symbol>(rhs)) {
             return Dist(_gf.subs(lhs == 1).subs(rhs == lhs * rhs));
         } else {
-            return Dist(_gf.subs(lhs == 1) * pow(lhs, rhs));
+            return Dist((rhs != 0 ? _gf : _gf.normal()).subs(lhs == 1) * pow(lhs, rhs));
         }
     }
 
@@ -626,8 +626,8 @@ namespace prodigy {
         }
 
         auto dist = Dist(res);
-        // test for negative values (this throws an exception in that case)
-        ex testFun = dist.marginal({updatedVar})._gf.subs(lhs == 0);
+        // TODO test for negative values (this throws an exception in that case) (doesn't always work)
+        // ex testFun = dist.marginal({updatedVar})._gf.normal().subs(lhs == 0);
         return dist;
     }
 
