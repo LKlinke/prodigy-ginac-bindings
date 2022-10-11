@@ -111,6 +111,16 @@ namespace prodigy {
         throw std::overflow_error("cannot generate more fresh symbols");
     }
 
+    int Dist::evaluate(const std::string &expr, const std::map<std::string, int> &valuations) {
+        parser p;
+        ex res = p(expr);
+        for(auto sym : p.get_syms()) {
+            res = res.subs(sym.second == valuations.at(sym.first));
+        }
+        EXPECTS(res.info(info_flags::integer), "result of valuation is not an integer");
+        return ex_to<numeric>(res).to_int();
+    }
+
 
 /* public interface of dist */
 

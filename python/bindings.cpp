@@ -105,7 +105,8 @@ PYBIND11_MODULE(pygin, m) {
         }
         return res;
     })
-    .def("get_fresh_variable", &Dist::getFreshVariable);
+    .def("get_fresh_variable", &Dist::getFreshVariable)
+    .def("evaluate", &Dist::evaluate);
 
     py::enum_<troolean>(m, "troolean")
             .value("false", troolean::FALSE)

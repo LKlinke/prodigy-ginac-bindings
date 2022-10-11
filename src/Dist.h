@@ -80,6 +80,12 @@ namespace prodigy {
          */
         static std::string getFreshVariable();
 
+        /**
+         * evaluates the expression in a given state
+         * does not read from or write to the symbol table, the only requirement is that valuations to all symbols in the expression are given
+        */
+        static int evaluate(const std::string &expr, const std::map<std::string, int> &valuations);
+
     private:
 
         static bool isSymbKnown(const symbol& s);
