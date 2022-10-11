@@ -9,9 +9,11 @@
 #include <ginac/ginac.h>
 
 #include <utility>
+#include <sstream>
 #include "Exceptions.h"
 #include "macros.h"
 #include "troolean.h"
+
 
 namespace prodigy {
 
