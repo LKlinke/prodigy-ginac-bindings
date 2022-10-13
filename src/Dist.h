@@ -285,7 +285,12 @@ namespace prodigy {
          * applies the update updatedVar := numerator / denominator to *this
          * throws an exception if this might result in a non-integer value
          */
-        Dist updateDivision(const std::string updatedVar, const std::string numerator, const std::string denominator) const;
+        Dist updateDivision(const std::string &updatedVar, const std::string &numerator, const std::string &denominator) const;
+
+        /**
+         * applies the update updatedVar := base^exp to *this
+        */
+        Dist updatePower(const std::string &updatedVar, const std::string &base, const std::string &exp) const;
     private:
         Dist _update(const symbol& x, const ex& e) const;
         Dist _incrAssgn(const symbol& x, const ex& term) const;

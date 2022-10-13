@@ -706,7 +706,7 @@ namespace prodigy {
         }
     }
 
-    Dist Dist::updateDivision(const std::string updatedVar, const std::string numerator, const std::string denominator) const {
+    Dist Dist::updateDivision(const std::string &updatedVar, const std::string &numerator, const std::string &denominator) const {
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
         EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
         EXPECTS(!isKnownAsParam(numerator) && !isKnownAsParam(denominator), "cannot perform division of parameters");
@@ -760,6 +760,67 @@ namespace prodigy {
                 EXPECTS(mod(ex_to<numeric>(div1), ex_to<numeric>(div2)) == 0, "numerator is not always divisible by denominator");
                 res = _gf.subs(lhs == 1) * pow(lhs, div1 / div2);
             }
+        }
+
+        return Dist(res);
+    }
+
+    Dist Dist::updatePower(const std::string &updatedVar, const std::string &base, const std::string &exp) const {
+        EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
+        EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
+        EXPECTS(!isKnownAsParam(base) && !isKnownAsParam(exp), "cannot perform exponentiation of parameters");
+        registerAllUnknownSymbsAsVars(symbol(updatedVar));
+        ex lhs = parseWithKnownSymbs(updatedVar);
+        ex pow1 = parseWithKnownSymbs(base);
+        ex pow2 = parseWithKnownSymbs(exp);
+        ex res = this->_gf;
+
+        // variable to the power of a variable
+        if(isKnownAsVar(base) && isKnownAsVar(exp)) {
+            auto marginal_l = this->marginal(base);
+            auto marginal_r = this->marginal(exp);
+            EXPECTS(marginal_l.isPolynomial({base}) == troolean::TRUE && marginal_r.isPolynomial({exp}) == troolean::TRUE, 
+                    "can only perform exponentiation of variables if both have a finite marginal");
+
+            for(auto state_l : marginal_l.getTerms({base})) {
+                for(auto state_r : marginal_r.getTerms({exp})) {
+                    int b = state_l.vals.at(base);
+                    int e = state_r.vals.at(exp);
+                    ex x = this->filterEq(base, std::to_string(b)).filterEq(exp, std::to_string(e))._gf;
+                    res -= x;
+                    res += x.subs(lhs == 1) * pow(lhs, pow(b, e));
+                }
+            }
+        }
+        // variable to the power of a literal
+        else if(isKnownAsVar(base)) {
+            auto marginal = this->marginal(base);
+            EXPECTS(marginal.isPolynomial({base}) == troolean::TRUE, 
+                    "Can only perform exponentiation if the base has a finite marginal");
+
+            for(auto state : marginal.getTerms({base})) {
+                int b = state.vals.at(base);
+                ex x = this->filterEq(base, std::to_string(b))._gf;
+                res -= x;
+                res += x.subs(lhs == 1) * pow(lhs, pow(b, pow2));
+            }
+        }
+        // literal to the power of a variable
+        else if(isKnownAsVar(exp)) {
+            auto marginal = this->marginal(exp);
+            EXPECTS(marginal.isPolynomial({exp}) == troolean::TRUE, 
+                    "Can only perform exponentiation if the base has a finite marginal");
+
+            for(auto state : marginal.getTerms({exp})) {
+                int e = state.vals.at(exp);
+                ex x = this->filterEq(exp, std::to_string(e))._gf;
+                res -= x;
+                res += x.subs(lhs == 1) * pow(lhs, pow(pow1, e));
+            }
+        }
+        // literal to the power of a literal
+        else {
+            res = res.subs(lhs == 1) * pow(lhs, pow(pow1, pow2));
         }
 
         return Dist(res);
