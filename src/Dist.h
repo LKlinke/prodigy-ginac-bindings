@@ -13,6 +13,7 @@
 #include "Exceptions.h"
 #include "macros.h"
 #include "troolean.h"
+#include <optional>
 
 
 namespace prodigy {
@@ -266,8 +267,8 @@ namespace prodigy {
         /**
          * applies the update updatedVar := firstFactor * secondFactor to *this
          */
-        Dist updateProduct(const std::string &updatedVar, const std::string &firstFactor, const std::string secondFactor, 
-            const std::set<std::string> variables, const bool finite) const;
+        Dist updateProduct(const std::string &updatedVar, const std::string &firstFactor, const std::string &secondFactor, 
+            const std::set<std::string> &variables, const bool &finite, const std::optional<std::string> &approx) const;
 
         /**
          * applies the update updatedVar := subFrom - sub to *this
@@ -278,19 +279,19 @@ namespace prodigy {
         /**
          * applies the update updatedVar := left % right to *this
          */
-        Dist updateModulo(const std::string &updatedVar, const std::string &left, const std::string right, 
-            const std::set<std::string> variables, const bool finite) const;
+        Dist updateModulo(const std::string &updatedVar, const std::string &left, const std::string &right, 
+            const std::set<std::string> &variables, const bool &finite, const std::optional<std::string> &approx) const;
 
         /**
          * applies the update updatedVar := numerator / denominator to *this
          * throws an exception if this might result in a non-integer value
          */
-        Dist updateDivision(const std::string &updatedVar, const std::string &numerator, const std::string &denominator) const;
+        Dist updateDivision(const std::string &updatedVar, const std::string &numerator, const std::string &denominator, const std::optional<std::string> &approx) const;
 
         /**
          * applies the update updatedVar := base^exp to *this
         */
-        Dist updatePower(const std::string &updatedVar, const std::string &base, const std::string &exp) const;
+        Dist updatePower(const std::string &updatedVar, const std::string &base, const std::string &exp, const std::optional<std::string> &approx) const;
 
         /**
          * approximates the distribution in one variable via its series expansion

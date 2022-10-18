@@ -513,8 +513,8 @@ namespace prodigy {
         }
     }
 
-    Dist Dist::updateProduct(const std::string &updatedVar, const std::string &firstFactor, const std::string secondFactor, 
-            const std::set<std::string> variables, const bool finite) const {
+    Dist Dist::updateProduct(const std::string &updatedVar, const std::string &firstFactor, const std::string &secondFactor, 
+            const std::set<std::string> &variables, const bool &finite, const std::optional<std::string> &approx) const {
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
         EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
         EXPECTS(!isKnownAsParam(firstFactor) && !isKnownAsParam(secondFactor), "cannot perform multiplication of parameters");
@@ -532,7 +532,13 @@ namespace prodigy {
                 auto marginal_r = this->marginal(secondFactor);
                 auto finite_right = marginal_r.isPolynomial({secondFactor}) == troolean::TRUE;
 
-                EXPECTS(finite_left || finite_right, "cannot perform multiplication of two variables with infinite range");
+                if(!finite_left && !finite_right) {
+                    if(!approx.has_value()) {
+                        throw std::invalid_argument("cannot perform multiplication of two variables with infinite range");
+                    }
+                    marginal_l = marginal_l.approximateUnilaterally(firstFactor, approx.value());
+                    finite_left = true;
+                }
 
                 Dist finite;
                 std::string finite_var, infinite_var;
@@ -553,7 +559,7 @@ namespace prodigy {
                     // state.vals contains only one item
                     auto val = std::to_string(state.vals[finite_var]);
                     res += this->filterEq(finite_var, val)
-                        .updateProduct(updatedVar, val, infinite_var, variables, other_finite)._gf;
+                        .updateProduct(updatedVar, val, infinite_var, variables, other_finite, approx)._gf;
                 }
                 return Dist(res);
             }
@@ -641,8 +647,8 @@ namespace prodigy {
         return dist;
     }
 
-    Dist Dist::updateModulo(const std::string &updatedVar, const std::string &left, const std::string right, 
-            const std::set<std::string> variables, const bool finite) const {
+    Dist Dist::updateModulo(const std::string &updatedVar, const std::string &left, const std::string &right, 
+            const std::set<std::string> &variables, const bool &finite, const std::optional<std::string> &approx) const {
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
         EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
         EXPECTS(!isKnownAsParam(left) && !isKnownAsParam(right), "cannot perform modulo of parameters");
@@ -671,12 +677,17 @@ namespace prodigy {
         // if the distribution is infinite and right is a variable, it needs to have finite range
         else if(isKnownAsVar(right)) {
             auto marginal_r = this->marginal(right);
-            // getTerms() performs the finiteness check
+            if(marginal_r.isPolynomial({right}) == troolean::FALSE) {
+                if(!approx.has_value()) {
+                    throw std::invalid_argument("rhs needs to have a finite marginal");
+                }
+                marginal_r = marginal_r.approximateUnilaterally(right, approx.value());
+            }
             ex res = 0;
             for(auto state : marginal_r.getTerms({right})) {
                 auto right_val = std::to_string(state.vals.at(right));
                 res += this->filterEq(right, right_val)
-                    .updateModulo(updatedVar, left, right_val, variables, finite)._gf;
+                    .updateModulo(updatedVar, left, right_val, variables, finite, approx)._gf;
             }
             return Dist(res);
         }
@@ -688,7 +699,7 @@ namespace prodigy {
                 for(auto state : marginal_l.getTerms({left})) {
                     auto left_val = std::to_string(state.vals.at(left));
                     res += this->filterEq(left, left_val)
-                        .updateModulo(updatedVar, left_val, right, variables, finite)._gf;
+                        .updateModulo(updatedVar, left_val, right, variables, finite, approx)._gf;
                 }
             } else {
                 auto prog = this->arithmeticProgression(left, right);
@@ -706,7 +717,7 @@ namespace prodigy {
         }
     }
 
-    Dist Dist::updateDivision(const std::string &updatedVar, const std::string &numerator, const std::string &denominator) const {
+    Dist Dist::updateDivision(const std::string &updatedVar, const std::string &numerator, const std::string &denominator, const std::optional<std::string> &approx) const {
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
         EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
         EXPECTS(!isKnownAsParam(numerator) && !isKnownAsParam(denominator), "cannot perform division of parameters");
@@ -718,13 +729,23 @@ namespace prodigy {
         Dist marginal_l, marginal_r;
         if(isKnownAsVar(numerator)) {
             marginal_l = this->marginal(numerator);
-            EXPECTS(marginal_l.isPolynomial({numerator}) == troolean::TRUE, "numerator must have a finite marginal");
+            if(marginal_l.isPolynomial({numerator}) == troolean::FALSE) {
+                if(!approx.has_value()) {
+                    throw std::invalid_argument("numerator must have a finite marginal");
+                }
+                marginal_l = marginal_l.approximateUnilaterally(numerator, approx.value());
+            }
         } else {
             marginal_l = Dist(div1);
         }
         if(isKnownAsVar(denominator)) {
             marginal_r = this->marginal(denominator);
-            EXPECTS(marginal_r.isPolynomial({numerator}) == troolean::TRUE, "denominator must have a finite marginal");
+            if(marginal_r.isPolynomial({denominator}) == troolean::FALSE) {
+                if(!approx.has_value()) {
+                    throw std::invalid_argument("denominator must have a finite marginal");
+                }
+                marginal_r = marginal_r.approximateUnilaterally(denominator, approx.value());
+            }
         } else {
             marginal_r = Dist(div2);
         }
@@ -765,7 +786,7 @@ namespace prodigy {
         return Dist(res);
     }
 
-    Dist Dist::updatePower(const std::string &updatedVar, const std::string &base, const std::string &exp) const {
+    Dist Dist::updatePower(const std::string &updatedVar, const std::string &base, const std::string &exp, const std::optional<std::string> &approx) const {
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
         EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
         EXPECTS(!isKnownAsParam(base) && !isKnownAsParam(exp), "cannot perform exponentiation of parameters");
@@ -779,8 +800,18 @@ namespace prodigy {
         if(isKnownAsVar(base) && isKnownAsVar(exp)) {
             auto marginal_l = this->marginal(base);
             auto marginal_r = this->marginal(exp);
-            EXPECTS(marginal_l.isPolynomial({base}) == troolean::TRUE && marginal_r.isPolynomial({exp}) == troolean::TRUE, 
-                    "can only perform exponentiation of variables if both have a finite marginal");
+            if(marginal_l.isPolynomial({base}) == troolean::FALSE) {
+                if(!approx.has_value()) {
+                    throw std::invalid_argument("base does not have a finite marginal");
+                }
+                marginal_l = marginal_l.approximateUnilaterally(base, approx.value());
+            }
+            if(marginal_l.isPolynomial({exp}) == troolean::FALSE) {
+                if(!approx.has_value()) {
+                    throw std::invalid_argument("exponent does not have a finite marginal");
+                }
+                marginal_r = marginal_r.approximateUnilaterally(exp, approx.value());
+            }
 
             for(auto state_l : marginal_l.getTerms({base})) {
                 for(auto state_r : marginal_r.getTerms({exp})) {
