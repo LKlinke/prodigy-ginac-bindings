@@ -826,6 +826,28 @@ namespace prodigy {
         return Dist(res);
     }
 
+    Dist Dist::approximateUnilaterally(const std::string &variable, const std::string &prob_mass) const {
+        ex mass = parseWithKnownSymbs(prob_mass).evalf();
+        EXPECTS(is_a<numeric>(mass), "given probability mass is not a number");
+        if(mass == 0) {
+            return Dist("0");
+        }
+        EXPECTS(mass < this->mass(), "given probability mass is too large");
+        EXPECTS(mass > 0, "given probability mass must be non-negative)");
+        EXPECTS(isKnownAsVar(variable), "given variable is not known as variable");
+        ex res = 0;
+        ex mass_res = 0;
+
+        int i = 0;
+        while(mass_res.evalf() < mass) {
+            auto next = this->filterEq(variable, std::to_string(i));
+            i++;
+            res += next._gf;
+            mass_res += next.mass();
+        }
+        return Dist(res);
+    }
+
     Dist Dist::updateIid(const std::string &x, const Dist &d, const std::string &y) const {
         EXPECTS(!isKnownAsParam(x) && !isKnownAsParam(y), "given symbol is considered a parameter, not a variable");
         EXPECTS(d.mass() == 1, "the distribution wrapped into iid must not be a sub distribution");

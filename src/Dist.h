@@ -291,6 +291,11 @@ namespace prodigy {
          * applies the update updatedVar := base^exp to *this
         */
         Dist updatePower(const std::string &updatedVar, const std::string &base, const std::string &exp) const;
+
+        /**
+         * approximates the distribution in one variable via its series expansion
+        */
+        Dist approximateUnilaterally(const std::string &variable, const std::string &prob_mass) const;
     private:
         Dist _update(const symbol& x, const ex& e) const;
         Dist _incrAssgn(const symbol& x, const ex& term) const;

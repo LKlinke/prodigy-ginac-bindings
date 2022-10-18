@@ -82,7 +82,8 @@ PYBIND11_MODULE(pygin, m) {
             .def("update_subtraction", &Dist::updateSubtraction)
             .def("update_modulo", &Dist::updateModulo)
             .def("update_division", &Dist::updateDivision)
-            .def("update_power", &Dist::updatePower);
+            .def("update_power", &Dist::updatePower)
+            .def("approximate_unilaterally", &Dist::approximateUnilaterally);
 
     // global functions in python
     m.def("geometric", &DistributionFactory::geometric, "creates a geometric distribution")
