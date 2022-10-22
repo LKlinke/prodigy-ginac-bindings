@@ -93,20 +93,7 @@ PYBIND11_MODULE(pygin, m) {
     .def("is_known_as_var", [](const string& x) { return Dist::isKnownAsVar(x); })
     .def("is_known_as_param", [](const string& x) { return Dist::isKnownAsParam(x); })
     .def("reset_symbol_cache", &Dist::resetSymbolCache)
-    .def("find_symbols", [](const std::string &s) {
-        // this function does not use the symbol registry, as opposed to Dist::getSymbols()
-        // to use the modulo operator %, we need to replace it with something ginac can parse
-        std::string str = s;
-        std::replace(str.begin(), str.end(), '%', '/');
-
-        GiNaC::parser p;
-        ex parsed = p(str);
-        std::vector<std::string> res;
-        for(auto i : p.get_syms()) {
-            res.push_back(i.first);
-        }
-        return res;
-    })
+    .def("find_symbols", &Dist::find_symbols)
     .def("get_fresh_variable", &Dist::getFreshVariable)
     .def("evaluate", &Dist::evaluate);
 

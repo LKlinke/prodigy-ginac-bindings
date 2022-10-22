@@ -33,6 +33,7 @@ namespace prodigy {
 
         using ex = GiNaC::ex;
         using symbol = GiNaC::symbol;
+        using possymbol = GiNaC::possymbol;
         using str2sym = std::map<std::string, ex>;
 
         friend class DistributionFactory;
@@ -78,7 +79,7 @@ namespace prodigy {
         static bool isKnownAsParam(const std::string& s);
 
         /**
-         * returns a symbol name that is registered as neither a parameter nor a variable, nor contained in the exclude parameter
+         * returns a symbol name that is registered as neither a parameter nor a variable
          * also registers the symbol as a variable
          */
         static std::string getFreshVariable();
@@ -89,11 +90,13 @@ namespace prodigy {
         */
         static int evaluate(const std::string &expr, const std::map<std::string, int> &valuations);
 
+        static std::vector<std::string> find_symbols(const std::string &exp);
+
     private:
 
-        static bool isSymbKnown(const symbol& s);
-        static bool isKnownAsVar(const symbol& s);
-        static bool isKnownAsParam(const symbol& s);
+        static bool isSymbKnown(const possymbol& s);
+        static bool isKnownAsVar(const possymbol& s);
+        static bool isKnownAsParam(const possymbol& s);
 
         /*
          * attempts to convert the given string to an expression
@@ -104,8 +107,8 @@ namespace prodigy {
 
         static void registerAllUnknownSymbsAsVars(const ex& e);
         static void registerAllUnknownSymbsAsParams(const ex& e);
-        static void registerAsVar(const symbol& p);
-        static void registerAsParam(const symbol& p);
+        static void registerAsVar(const possymbol& p);
+        static void registerAsParam(const possymbol& p);
         static void deregister(const std::string& s);
 
 
@@ -298,8 +301,8 @@ namespace prodigy {
         */
         Dist approximateUnilaterally(const std::string &variable, const std::string &prob_mass) const;
     private:
-        Dist _update(const symbol& x, const ex& e) const;
-        Dist _incrAssgn(const symbol& x, const ex& term) const;
+        Dist _update(const possymbol& x, const ex& e) const;
+        Dist _incrAssgn(const possymbol& x, const ex& term) const;
     public:
 
         /*

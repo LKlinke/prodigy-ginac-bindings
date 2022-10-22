@@ -24,7 +24,7 @@ namespace prodigy {
         return res;
     }
 
-    bool Dist::isSymbKnown(const symbol &s) {
+    bool Dist::isSymbKnown(const possymbol &s) {
         return _params.count(s.get_name()) > 0 || _vars.count(s.get_name()) > 0;
     }
 
@@ -32,7 +32,7 @@ namespace prodigy {
         return _params.count(s) > 0 || _vars.count(s) > 0;
     }
 
-    bool Dist::isKnownAsVar(const symbol &s) {
+    bool Dist::isKnownAsVar(const possymbol &s) {
         return _vars.count(s.get_name()) > 0;
     }
 
@@ -40,7 +40,7 @@ namespace prodigy {
         return _vars.count(s) > 0;
     }
 
-    bool Dist::isKnownAsParam(const symbol &s) {
+    bool Dist::isKnownAsParam(const possymbol &s) {
         return _params.count(s.get_name()) > 0;
     }
 
@@ -49,7 +49,13 @@ namespace prodigy {
     }
 
     ex Dist::parseWithKnownSymbs(const std::string &s) {
-        parser pars(paramsAndVars());
+        auto syms = paramsAndVars();
+        for(auto found : find_symbols(s)) {
+            if(!isKnownAsVar(found) && !isKnownAsParam(found)) {
+                syms[found] = possymbol(found);
+            }
+        }
+        parser pars(syms);
         ex parsed = pars(s); // might throw parse error
         return parsed;
     }
@@ -57,7 +63,8 @@ namespace prodigy {
     void Dist::registerAllUnknownSymbsAsVars(const ex &e) {
         for (auto it = e.preorder_begin(); it != e.preorder_end(); ++it) {
             if (is_a<symbol>(*it)) {
-                const auto &s = ex_to<symbol>(*it);
+                EXPECTS(is_a<possymbol>(*it), "variable is not a possymbol");
+                const auto &s = ex_to<possymbol>(*it);
                 if (!isSymbKnown(s)) {
                     _vars[s.get_name()] = s;
                 }
@@ -68,7 +75,8 @@ namespace prodigy {
     void Dist::registerAllUnknownSymbsAsParams(const ex &e) {
         for (auto it = e.preorder_begin(); it != e.preorder_end(); ++it) {
             if (is_a<symbol>(*it)) {
-                const auto &s = ex_to<symbol>(*it);
+                EXPECTS(is_a<possymbol>(*it), "parameter is not a possymbol");
+                const auto &s = ex_to<possymbol>(*it);
                 if (!isSymbKnown(s)) {
                     _params[s.get_name()] = s;
                 }
@@ -76,12 +84,12 @@ namespace prodigy {
         }
     }
 
-    void Dist::registerAsVar(const symbol &p) {
+    void Dist::registerAsVar(const possymbol &p) {
         assert(!isKnownAsParam(p));
         _vars[p.get_name()] = p;
     }
 
-    void Dist::registerAsParam(const symbol &p) {
+    void Dist::registerAsParam(const possymbol &p) {
         assert(!isKnownAsVar(p));
         _params[p.get_name()] = p;
     }
@@ -102,7 +110,7 @@ namespace prodigy {
             s << "sym_" << i;
             std::string str = s.str();
             if(!isKnownAsParam(str) && !isKnownAsVar(str)) {
-                registerAsVar(symbol(str));
+                registerAsVar(possymbol(str));
                 return str;
             }
             i++;
@@ -121,6 +129,21 @@ namespace prodigy {
         return ex_to<numeric>(res).to_int();
     }
 
+    std::vector<std::string> Dist::find_symbols(const std::string &s) {
+        // this function does not use the symbol registry, as opposed to Dist::getSymbols()
+        // to use the modulo operator %, we need to replace it with something ginac can parse
+        std::string str = s;
+        std::replace(str.begin(), str.end(), '%', '/');
+
+        GiNaC::parser p;
+        ex parsed = p(str);
+        std::vector<std::string> res;
+        for(auto i : p.get_syms()) {
+            res.push_back(i.first);
+        }
+        return res;
+    }
+
 
 /* public interface of dist */
 
@@ -133,8 +156,8 @@ namespace prodigy {
     Dist::Dist(const std::string &gfStr, const std::vector<std::string> &paramsStr) {
         for(const auto& pStr : paramsStr) {
             ex p = parseWithKnownSymbs(pStr); // might throw parse error
-            EXPECTS(is_a<symbol>(p), "given parameter is not a symbol");
-            const auto &pSym = ex_to<symbol>(p);
+            EXPECTS(is_a<possymbol>(p), "given parameter is not a symbol");
+            const auto &pSym = ex_to<possymbol>(p);
             EXPECTS(!isKnownAsVar(pSym), "given parameter was registered as variable before");
             // TODO we might want to not register the param if gf does not contain it at all
             registerAsParam(pSym);
@@ -175,7 +198,7 @@ namespace prodigy {
 
     Dist Dist::marginal(const std::string &x) const {
         EXPECTS(!isKnownAsParam(x), "given symbol is considered a parameter");
-        ex res{_gf.normal()};
+        ex res{_gf.expand().normal()};
         for (const auto &v : _vars) {
             if (v.first != x) {
                 res = res.subs(v.second == 1);
@@ -218,7 +241,8 @@ namespace prodigy {
         str2sym found;
         for(auto it = gfNormal.preorder_begin(); it != gfNormal.preorder_end(); ++it) {
             if(is_a<symbol>(*it)) {
-                const auto& s = ex_to<symbol>(*it);
+                EXPECTS(is_a<possymbol>(*it), "symbol is not a possymbol");
+                const auto& s = ex_to<possymbol>(*it);
                 if(isKnownAsParam(s)) continue;
                 assert(isKnownAsVar(s));
                 found[s.get_name()] = s;
@@ -258,7 +282,7 @@ namespace prodigy {
             if (isKnownAsVar(var)) {
                 expr = _vars.at(var);
             } else {
-                expr = symbol(var);
+                expr = possymbol(var);
             }
             if(!_gf.is_polynomial(expr)) {
                 return troolean::FALSE;
@@ -276,7 +300,7 @@ namespace prodigy {
             if(isKnownAsVar(var)) {
                 varEx.push_back(_vars.at(var));
             } else {
-                varEx.push_back(symbol(var));
+                varEx.push_back(possymbol(var));
             }
         }
 
@@ -362,13 +386,13 @@ namespace prodigy {
         EXPECTS(!isKnownAsParam(x), "lhs of update may not be a parameter");
         ex xExp = parseWithKnownSymbs(x); // might throw parse error
         ex eExp = parseWithKnownSymbs(e);
-        EXPECTS(is_a<symbol>(xExp), "lhs of update must be a symbol");
-        const auto &xSym = ex_to<symbol>(xExp);
+        EXPECTS(is_a<possymbol>(xExp), "lhs of update must be a symbol");
+        const auto &xSym = ex_to<possymbol>(xExp);
         EXPECTS(eExp.info(info_flags::polynomial), "only polynomial arithmetic is supported in updates");
         return _update(xSym, eExp); // might throw errors
     }
 
-    Dist Dist::_update(const symbol &x, const ex &e) const {
+    Dist Dist::_update(const possymbol &x, const ex &e) const {
         /*
          * algorithm for evaluating given assignment x = e = term_1 + ... + term_n :
          *
@@ -382,7 +406,7 @@ namespace prodigy {
         ex pol = e.expand();
         Dist res{*this};
         // 1) tmp = 0
-        symbol tmp;
+        possymbol tmp;
         // 2) tmp += term_1 ... tmp += term_n
         if (is_a<numeric>(pol) || is_a<symbol>(pol) || is_a<mul>(pol)) {
             // eg pol = 1 || pol = x || pol = 2*y
@@ -402,7 +426,7 @@ namespace prodigy {
         return res;
     }
 
-    Dist Dist::_incrAssgn(const symbol &x, const ex &term) const {
+    Dist Dist::_incrAssgn(const possymbol &x, const ex &term) const {
         ex res{_gf};
         if (term.info(info_flags::nonnegint)) {
             // x += k, with k a non-negative int
@@ -452,8 +476,8 @@ namespace prodigy {
 
     Dist Dist::updateVar(const std::string &updatedVar, const std::string &assignVar) const {
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
-        EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
-        registerAllUnknownSymbsAsVars(symbol(updatedVar));
+        EXPECTS(is_a<possymbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a possymbol");
+        registerAllUnknownSymbsAsVars(possymbol(updatedVar));
         if(updatedVar == assignVar) {
             return *this;
         }
@@ -462,6 +486,7 @@ namespace prodigy {
         ex rhs = parseWithKnownSymbs(assignVar);
         ex lhs = _vars.at(updatedVar);
         if(is_a<symbol>(rhs)) {
+            EXPECTS(is_a<possymbol>(rhs), "rhs is not a possymbol");
             return Dist(_gf.subs(lhs == 1).subs(rhs == lhs * rhs));
         } else {
             return Dist((rhs != 0 ? _gf : _gf.normal()).subs(lhs == 1) * pow(lhs, rhs));
@@ -471,7 +496,7 @@ namespace prodigy {
     Dist Dist::updateSum(const std::string &updatedVar, const std::string &firstSummand, const std::string secondSummand) const {
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
         EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
-        registerAllUnknownSymbsAsVars(symbol(updatedVar));
+        registerAllUnknownSymbsAsVars(possymbol(updatedVar));
         ex lhs = parseWithKnownSymbs(updatedVar);
         ex sum1 = parseWithKnownSymbs(firstSummand);
         ex sum2 = parseWithKnownSymbs(secondSummand);
@@ -518,7 +543,7 @@ namespace prodigy {
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
         EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
         EXPECTS(!isKnownAsParam(firstFactor) && !isKnownAsParam(secondFactor), "cannot perform multiplication of parameters");
-        registerAllUnknownSymbsAsVars(symbol(updatedVar));
+        registerAllUnknownSymbsAsVars(possymbol(updatedVar));
         ex lhs = parseWithKnownSymbs(updatedVar);
         ex fac1 = parseWithKnownSymbs(firstFactor);
         ex fac2 = parseWithKnownSymbs(secondFactor);
@@ -600,7 +625,7 @@ namespace prodigy {
     Dist Dist::updateSubtraction(const std::string updatedVar, const std::string subFrom, const std::string sub) const {
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
         EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
-        registerAllUnknownSymbsAsVars(symbol(updatedVar));
+        registerAllUnknownSymbsAsVars(possymbol(updatedVar));
         ex lhs = parseWithKnownSymbs(updatedVar);
         ex sub1 = parseWithKnownSymbs(subFrom);
         ex sub2 = parseWithKnownSymbs(sub);
@@ -643,7 +668,7 @@ namespace prodigy {
 
         auto dist = Dist(res);
         // TODO test for negative values (this throws an exception in that case) (doesn't always work)
-        // ex testFun = dist.marginal({updatedVar})._gf.normal().subs(lhs == 0);
+        // ex testFun = dist.marginal(updatedVar)._gf.normal().subs(lhs == 0);
         return dist;
     }
 
@@ -652,7 +677,7 @@ namespace prodigy {
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
         EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
         EXPECTS(!isKnownAsParam(left) && !isKnownAsParam(right), "cannot perform modulo of parameters");
-        registerAllUnknownSymbsAsVars(symbol(updatedVar));
+        registerAllUnknownSymbsAsVars(possymbol(updatedVar));
         ex lhs = parseWithKnownSymbs(updatedVar);
 
         // on finite distributions, iterate over all states
@@ -721,7 +746,7 @@ namespace prodigy {
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
         EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
         EXPECTS(!isKnownAsParam(numerator) && !isKnownAsParam(denominator), "cannot perform division of parameters");
-        registerAllUnknownSymbsAsVars(symbol(updatedVar));
+        registerAllUnknownSymbsAsVars(possymbol(updatedVar));
         ex lhs = parseWithKnownSymbs(updatedVar);
         ex div1 = parseWithKnownSymbs(numerator);
         ex div2 = parseWithKnownSymbs(denominator);
@@ -790,7 +815,7 @@ namespace prodigy {
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
         EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
         EXPECTS(!isKnownAsParam(base) && !isKnownAsParam(exp), "cannot perform exponentiation of parameters");
-        registerAllUnknownSymbsAsVars(symbol(updatedVar));
+        registerAllUnknownSymbsAsVars(possymbol(updatedVar));
         ex lhs = parseWithKnownSymbs(updatedVar);
         ex pow1 = parseWithKnownSymbs(base);
         ex pow2 = parseWithKnownSymbs(exp);
@@ -885,11 +910,11 @@ namespace prodigy {
         EXPECTS(d.isUnivariate() == troolean::TRUE, "the distribution wrapped into iid must be univariate");
         if (!isKnownAsVar(y)) {
             // then this is like x = iid(y, 0) so x simply becomes 0
-            registerAsVar(symbol(y)); // consider z variable from now on
+            registerAsVar(possymbol(y)); // consider z variable from now on
             return update(x, "0");
         }
         if (!isKnownAsVar(x)) {
-            registerAsVar(symbol(x));
+            registerAsVar(possymbol(x));
         }
         // first marginalize x away in *this
         ex res = _gf.normal().subs(_vars[x] == 1);
@@ -914,8 +939,8 @@ namespace prodigy {
         ex xExp;
         // todo why not use parseWithKnownSymbols?
         if(!isKnownAsVar(x)) {
-            xExp = symbol {x};
-            Dist::registerAsVar(ex_to<symbol>(xExp));
+            xExp =possymbol {x};
+            Dist::registerAsVar(ex_to<possymbol>(xExp));
         } else {
             xExp = _vars.at(x);
         }
