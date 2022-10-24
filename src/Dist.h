@@ -249,7 +249,7 @@ namespace prodigy {
         /**
          * returns all symbols that occur in this distribution (variables and parameters)
          */
-        std::vector<symbol> getSymbols() const;
+        std::vector<possymbol> getSymbols() const;
 
         /*
          * update distribution according to assignment x := e

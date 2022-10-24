@@ -351,11 +351,14 @@ namespace prodigy {
         return res;
     }
 
-    std::vector<symbol> Dist::getSymbols() const {
-        std::vector<symbol> res;
+    std::vector<possymbol> Dist::getSymbols() const {
+        std::vector<possymbol> res;
         for(auto i = _gf.preorder_begin(); i != _gf.preorder_end(); i++) {
             if(is_a<symbol>(*i)) {
-                res.push_back(ex_to<symbol>(*i));
+                EXPECTS(is_a<possymbol>(*i), "symbol is not a possymbol");
+                if(res.empty() || std::find(res.begin(), res.end(), *i) == res.end()) {
+                    res.push_back(ex_to<possymbol>(*i));
+                }
             }
         }
         return res;
