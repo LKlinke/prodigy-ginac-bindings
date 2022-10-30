@@ -161,7 +161,7 @@ namespace prodigy {
          * returns total probability mass, possibly non-numeric due to params
          * // todo implement in terms of moment
          */
-        ex mass() const;
+        ex mass(const std::optional<std::set<std::string>> vars = std::optional<std::set<std::string>>()) const;
 
         /*
          * returns expected value, possibly non-numeric due to params

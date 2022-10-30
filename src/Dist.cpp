@@ -171,15 +171,21 @@ namespace prodigy {
         return _gf;
     }
 
-    ex Dist::mass() const {
+    ex Dist::mass(const std::optional<std::set<std::string>> vars) const {
         ex res{_gf};
         /* TODO
          * normal() cancels common factors, this is needed since we are going to substitute stuff to avoid div by 0
          * encapsulate this somehow because substitution occurs elsewhere too
          */
         res = res.normal();
-        for (const auto &v : _vars) {
-            res = res.subs(v.second == 1);
+        if(!vars.has_value()) {
+            for (const auto &v : _vars) {
+                res = res.subs(v.second == 1);
+            }
+        } else {
+            for (auto v : vars.value()) {
+                res = res.subs(_vars.at(v) == 1);
+            }
         }
         return res;
     }

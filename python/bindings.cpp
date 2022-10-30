@@ -36,7 +36,8 @@ PYBIND11_MODULE(pygin, m) {
             .def(py::init<const string&, const string&>())
             .def(py::init<const string&, const std::vector<string>&>())
             .def("E", [](const Dist& dist, const string& x) { return toString(dist.E(x)); })
-            .def("mass", [](const Dist& dist) { return toString(dist.mass()); })
+            .def("mass", [](const Dist& dist, const std::optional<std::set<std::string>> vars) { 
+                return toString(dist.mass(vars)); }, py::arg("vars") = std::optional<std::set<std::string>>())
             .def("normalize", &Dist::normalize)
             .def("marginal", [](const Dist& dist, const string& x) {return dist.marginal(x);})
             .def("marginal", [](const Dist& dist, const std::vector<string>& vars) {return dist.marginal(vars);})
