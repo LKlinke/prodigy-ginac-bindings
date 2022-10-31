@@ -945,10 +945,14 @@ namespace prodigy {
         ex eExp = parse(e);
         EXPECTS(eExp.info(info_flags::nonnegint), "given expression must be non-neg int");
         int order = ex_to<numeric>(eExp).to_int();
+        if(order == 0) {
+            // nothing can be less than 0
+            return Dist("0");
+        }
         ex xExp;
         // todo why not use parseWithKnownSymbols?
         if(!isKnownAsVar(x)) {
-            xExp =possymbol {x};
+            xExp = possymbol {x};
             Dist::registerAsVar(ex_to<possymbol>(xExp));
         } else {
             xExp = _vars.at(x);
