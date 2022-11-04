@@ -349,8 +349,8 @@ namespace prodigy {
         for(int rem = 0; rem < exMod; rem++) {
             ex psum = 0;
             for(int m = 0; m < exMod; m++) {
-                psum += pow(root, -m * rem) * 
-                    _gf.subs(exVar == pow(root, m) * exVar);
+                psum += GiNaC::pow(root, -m * rem) * 
+                    _gf.subs(exVar == GiNaC::pow(root, m) * exVar);
             }
             res.push_back(Dist(psum/exMod));
         }
@@ -439,14 +439,14 @@ namespace prodigy {
         ex res{_gf};
         if (term.info(info_flags::nonnegint)) {
             // x += k, with k a non-negative int
-            res *= pow(x, term);
+            res *= GiNaC::pow(x, term);
         } else if (term.info(info_flags::negint)) {
             // x += k, with k a neg int
             // we implement ``monus''
             int k = ex_to<numeric>(term).to_int();
             ex smallerK = series_to_poly(res.series(x, -k));
             ex rest = res - smallerK;
-            res = rest*pow(x, term) + smallerK.subs(x == 1);
+            res = rest*GiNaC::pow(x, term) + smallerK.subs(x == 1);
         } else if (term.info(info_flags::symbol)) {
             // x += y, with y a variable
             res = res.subs(term == x * term);
@@ -459,18 +459,18 @@ namespace prodigy {
                 ex second=term.op(1);
                 if (first.info(info_flags::symbol) && second.info(info_flags::nonnegint)){
                     // e.g. y*2
-                    res = res.subs(term == x*pow(first, second));
+                    res = res.subs(term == x*GiNaC::pow(first, second));
                 } else if (second.info(info_flags::symbol) && first.info(info_flags::nonnegint)){
                     // e.g. 2*y
-                    res = res.subs(term == x * pow(second, first));
+                    res = res.subs(term == x * GiNaC::pow(second, first));
                 } else if (first.info(info_flags::symbol) && second.info(info_flags::negint)){
                     // e.g. -y || -1 * y
                     //std::cerr << "Warning! This might lead to undesired behavior!" << std::endl;
-                    res = res.subs(first == first*pow(x, second));
+                    res = res.subs(first == first*GiNaC::pow(x, second));
                 } else if (second.info(info_flags::symbol) && first.info(info_flags::negint)){
                     // e.g. y * -1
                     //std::cerr << "Warning! This might lead to undesired behavior!" << std::endl;
-                    res = res.subs(term == x*pow(second, first));
+                    res = res.subs(term == x*GiNaC::pow(second, first));
                 } else{
                     EXPECTS(false, "multiplication of two variables not supported");
                 }
@@ -498,7 +498,7 @@ namespace prodigy {
             EXPECTS(is_a<possymbol>(rhs), "rhs is not a possymbol");
             return Dist(_gf.subs(lhs == 1).subs(rhs == lhs * rhs));
         } else {
-            return Dist((rhs != 0 ? _gf : _gf.normal()).subs(lhs == 1) * pow(lhs, rhs));
+            return Dist((rhs != 0 ? _gf : _gf.normal()).subs(lhs == 1) * GiNaC::pow(lhs, rhs));
         }
     }
 
@@ -519,7 +519,7 @@ namespace prodigy {
             }
             if(sum1 == lhs) {
                 if(sum2 == lhs) {
-                    return Dist(_gf.subs(lhs == pow(lhs, 2)));
+                    return Dist(_gf.subs(lhs == GiNaC::pow(lhs, 2)));
                 } else {
                     return Dist(_gf.subs(sum2 == sum2*lhs));
                 }
@@ -539,11 +539,11 @@ namespace prodigy {
             if(var != lhs) {
                 res = res.subs(lhs == 1).subs(var == lhs * var);
             }
-            return Dist(res * pow(lhs, lit));
+            return Dist(res * GiNaC::pow(lhs, lit));
         }
         // we add two literals / parameters
         else {
-            return Dist(_gf.subs(lhs == 1) * pow(lhs, sum1 + sum2));
+            return Dist(_gf.subs(lhs == 1) * GiNaC::pow(lhs, sum1 + sum2));
         }
     }
 
@@ -603,7 +603,7 @@ namespace prodigy {
                 for(auto state : this->getTerms(variables)) {
                     ex term = parseWithKnownSymbs(state.toString());
                     res -= term;
-                    term = term.subs(lhs == 1) * pow(lhs, state.vals.at(firstFactor) * state.vals.at(secondFactor));
+                    term = term.subs(lhs == 1) * GiNaC::pow(lhs, state.vals.at(firstFactor) * state.vals.at(secondFactor));
                     res += term;
                 }
                 return Dist(res);
@@ -620,14 +620,14 @@ namespace prodigy {
                 lit = fac1;
             }
             if(var == lhs) {
-                return Dist(_gf.subs(lhs == pow(lhs, lit)));
+                return Dist(_gf.subs(lhs == GiNaC::pow(lhs, lit)));
             } else {
-                return Dist(_gf.subs(lhs == 1).subs(var == var * pow(lhs, lit)));
+                return Dist(_gf.subs(lhs == 1).subs(var == var * GiNaC::pow(lhs, lit)));
             }
         }
         // we multiply two literals
         else {
-            return Dist(_gf.subs(lhs == 1) * pow(lhs, fac1 * fac2));
+            return Dist(_gf.subs(lhs == 1) * GiNaC::pow(lhs, fac1 * fac2));
         }
     }
 
@@ -646,13 +646,13 @@ namespace prodigy {
                 if(sub1 == lhs) {
                     res = _gf.subs(lhs == 1);
                 } else {
-                    res = _gf.subs(lhs == pow(lhs, -1)).subs(sub1 == sub1 * lhs);
+                    res = _gf.subs(lhs == GiNaC::pow(lhs, -1)).subs(sub1 == sub1 * lhs);
                 }
             } else {
                 if(sub1 != lhs) {
                     res = res.subs(lhs == 1).subs(sub1 == sub1 * lhs);
                 }
-                res = res.subs(sub2 == sub2 * pow(lhs, -1));
+                res = res.subs(sub2 == sub2 * GiNaC::pow(lhs, -1));
             }
         }
         //we subtract a literal / parameter from a variable
@@ -660,19 +660,19 @@ namespace prodigy {
             if(lhs != sub1) {
                 res = res.subs(lhs == 1).subs(sub1 == sub1 * lhs);
             }
-            res = res * pow(lhs, -sub2);
+            res = res * GiNaC::pow(lhs, -sub2);
         }
         // we subtract a variable from a literal / parameter
         else if(isKnownAsVar(sub)) {
             if(sub2 == lhs) {
-                res = _gf.subs(lhs == pow(lhs, -1)) * pow(lhs, sub1);
+                res = _gf.subs(lhs == GiNaC::pow(lhs, -1)) * GiNaC::pow(lhs, sub1);
             } else {
-                res = (_gf.subs(lhs == 1) * pow(lhs, sub1)).subs(sub2 == sub2 * pow(lhs, -1));
+                res = (_gf.subs(lhs == 1) * GiNaC::pow(lhs, sub1)).subs(sub2 == sub2 * GiNaC::pow(lhs, -1));
             }
         }
         // we subtract two literals / parameters from each other
         else {
-            res = _gf.subs(lhs == 1) * pow(lhs, sub1 - sub2);
+            res = _gf.subs(lhs == 1) * GiNaC::pow(lhs, sub1 - sub2);
         }
 
         auto dist = Dist(res);
@@ -704,7 +704,7 @@ namespace prodigy {
                 } else {
                     rightVar = ex_to<numeric>(parseWithKnownSymbs(right));
                 }
-                res += parseWithKnownSymbs(state.toString()).subs(lhs == 1) * pow(lhs, mod(leftVar, rightVar));
+                res += parseWithKnownSymbs(state.toString()).subs(lhs == 1) * GiNaC::pow(lhs, mod(leftVar, rightVar));
             }
             return Dist(res);
         }
@@ -738,7 +738,7 @@ namespace prodigy {
             } else {
                 auto prog = this->arithmeticProgression(left, right);
                 for(int i = 0; i < prog.size(); i++) {
-                    res += prog.at(i)._gf.subs(lhs == 1) * pow(lhs, i);
+                    res += prog.at(i)._gf.subs(lhs == 1) * GiNaC::pow(lhs, i);
                 }
             }
             return Dist(res);
@@ -794,13 +794,13 @@ namespace prodigy {
                         ex x = this->filterEq(numerator, std::to_string(val_l))
                             .filterEq(denominator, std::to_string(val_r))._gf;
                         EXPECTS(mod(val_l, val_r) == 0 || x == 0, "numerator is not always divisible by denominator");
-                        res += x.subs(lhs == 1) * pow(lhs, val_l / val_r);
+                        res += x.subs(lhs == 1) * GiNaC::pow(lhs, val_l / val_r);
                     }
                 } else {
                     int val_l = state_l.vals.at(numerator);
                     ex x = this->filterEq(numerator, std::to_string(val_l))._gf;
                     EXPECTS(mod(val_l, ex_to<numeric>(div2)) == 0 || x == 0, "numerator is not always divisible by denominator");
-                    res += x.subs(lhs == 1) * pow(lhs, val_l / div2);
+                    res += x.subs(lhs == 1) * GiNaC::pow(lhs, val_l / div2);
                 }
             }
         } else {
@@ -809,11 +809,11 @@ namespace prodigy {
                     int val_r = state_r.vals.at(denominator);
                     ex x = this->filterEq(denominator, std::to_string(val_r))._gf;
                     EXPECTS(mod(ex_to<numeric>(div1), val_r) == 0 || x == 0, "numerator is not always divisible by denominator");
-                    res += x.subs(lhs == 1) * pow(lhs, div1 / val_r);
+                    res += x.subs(lhs == 1) * GiNaC::pow(lhs, div1 / val_r);
                 } 
             } else {
                 EXPECTS(mod(ex_to<numeric>(div1), ex_to<numeric>(div2)) == 0, "numerator is not always divisible by denominator");
-                res = _gf.subs(lhs == 1) * pow(lhs, div1 / div2);
+                res = _gf.subs(lhs == 1) * GiNaC::pow(lhs, div1 / div2);
             }
         }
 
@@ -853,7 +853,7 @@ namespace prodigy {
                     int e = state_r.vals.at(exp);
                     ex x = this->filterEq(base, std::to_string(b)).filterEq(exp, std::to_string(e))._gf;
                     res -= x;
-                    res += x.subs(lhs == 1) * pow(lhs, pow(b, e));
+                    res += x.subs(lhs == 1) * GiNaC::pow(lhs, GiNaC::pow(b, e));
                 }
             }
         }
@@ -867,7 +867,7 @@ namespace prodigy {
                 int b = state.vals.at(base);
                 ex x = this->filterEq(base, std::to_string(b))._gf;
                 res -= x;
-                res += x.subs(lhs == 1) * pow(lhs, pow(b, pow2));
+                res += x.subs(lhs == 1) * GiNaC::pow(lhs, GiNaC::pow(b, pow2));
             }
         }
         // literal to the power of a variable
@@ -880,12 +880,12 @@ namespace prodigy {
                 int e = state.vals.at(exp);
                 ex x = this->filterEq(exp, std::to_string(e))._gf;
                 res -= x;
-                res += x.subs(lhs == 1) * pow(lhs, pow(pow1, e));
+                res += x.subs(lhs == 1) * GiNaC::pow(lhs, GiNaC::pow(pow1, e));
             }
         }
         // literal to the power of a literal
         else {
-            res = res.subs(lhs == 1) * pow(lhs, pow(pow1, pow2));
+            res = res.subs(lhs == 1) * GiNaC::pow(lhs, GiNaC::pow(pow1, pow2));
         }
 
         return Dist(res);
