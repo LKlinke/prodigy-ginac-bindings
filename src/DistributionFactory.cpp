@@ -15,7 +15,7 @@ namespace prodigy {
         ex xExp = parse(x);
         EXPECTS(is_a<symbol>(xExp), "variable of geom distr must be a symbol");
         std::ostringstream ss;
-        ss << "( 1 - (" << p << ") ) / (1 - (" << x << ") * (" << p << "))";
+        ss << '(' << p << ") / (1 - (1 - (" << p << ")) * " << x << ")";
         ex pExp = parse(p);
         if (is_a<symbol>(pExp)) {
             return Dist{ss.str(), p};
