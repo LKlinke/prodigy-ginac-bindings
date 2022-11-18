@@ -338,10 +338,10 @@ namespace prodigy {
         class CoefficientIterator {
         private:
             ex _rest;
-            symbol _var;
+            possymbol _var;
             int _n;
         public:
-            CoefficientIterator(Dist dist, symbol var) : _rest(std::move(dist._gf)), _var(std::move(var)), _n(1) {}
+            CoefficientIterator(Dist dist, possymbol var) : _rest(std::move(dist._gf)), _var(std::move(var)), _n(1) {}
             Dist next();
             Dist rest() const { return Dist(_rest); }
         };

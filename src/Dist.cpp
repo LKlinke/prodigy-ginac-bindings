@@ -971,7 +971,7 @@ namespace prodigy {
 
     Dist::CoefficientIterator Dist::coefficientIterator(const std::string &var) const {
         EXPECTS(isKnownAsVar(var), "can only expand series in known variables");
-        return CoefficientIterator(*this, ex_to<symbol>(_vars.at(var)));
+        return CoefficientIterator(*this, ex_to<possymbol>(_vars.at(var)));
     }
 
     Dist Dist::substituteParam(const std::string &p, const std::string &val) const {
