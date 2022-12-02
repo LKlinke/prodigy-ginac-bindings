@@ -236,9 +236,14 @@ namespace prodigy {
             }
         } State;
         /**
-         * returns a list of all terms if *this is a polynomial
+         * returns a list of all terms if *this is a polynomial in the provided variables
          */
         std::vector<State> getTerms(const std::set<std::string>& vars) const;
+
+        /**
+         * returns a list of all terms if *this is a polynomial
+         */
+        std::vector<State> getTerms() const;
 
         /**
          * creates a vector where at index i, the given variable is congruent
@@ -303,6 +308,7 @@ namespace prodigy {
     private:
         Dist _update(const possymbol& x, const ex& e) const;
         Dist _incrAssgn(const possymbol& x, const ex& term) const;
+        std::vector<State> getTerms(const GiNaC::lst& vars) const;
     public:
 
         /*

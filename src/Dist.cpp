@@ -281,20 +281,32 @@ namespace prodigy {
     }
 
     troolean Dist::isPolynomial(const std::set<std::string>& vars) const {
+        lst varEx;
         for (const auto &var : vars){
             EXPECTS(!isKnownAsParam(var), "given symbol is considered a parameter");
-            // an expression is a polynomial in a list of variables iff it is a polynomial in all individual variables
-            ex expr;
             if (isKnownAsVar(var)) {
-                expr = _vars.at(var);
+                varEx.append(_vars.at(var));
             } else {
-                expr = possymbol(var);
-            }
-            if(!_gf.is_polynomial(expr)) {
-                return troolean::FALSE;
+                varEx.append(possymbol(var));
             }
         }
-        return troolean::TRUE;
+        if(_gf.is_polynomial(varEx)) {
+            return troolean::TRUE;
+        }
+        return troolean::FALSE;
+    }
+
+    troolean Dist::isFiniteSupport() const {
+        lst vars;
+        for(auto var : this->getSymbols()) {
+            if(isKnownAsVar(var)) {
+                vars.append(var);
+            }
+        }
+        if(_gf.is_polynomial(vars)) {
+            return troolean::TRUE;
+        }
+        return troolean::FALSE;
     }
 
     std::vector<Dist::State> Dist::getTerms(const std::set<std::string>& vars) const {
@@ -308,10 +320,24 @@ namespace prodigy {
                 varEx.append(possymbol(var));
             }
         }
+        return getTerms(varEx);
+    }
 
+    std::vector<Dist::State> Dist::getTerms() const {
+        EXPECTS(this->isFiniteSupport() == troolean::TRUE, "can only iterate over terms of a finite polynomial");
+        lst vars;
+        for(auto var : this->getSymbols()) {
+            if(isKnownAsVar(var)) {
+                vars.append(var);
+            }
+        }
+        return getTerms(vars);
+    }
+
+    std::vector<Dist::State> Dist::getTerms(const lst &vars) const {
         auto handleProduct = [&](ex &term) {
             Dist::State state;
-            for(ex var : varEx) {
+            for(ex var : vars) {
                 state.vals[ex_to<symbol>(var).get_name()] = ex_to<numeric>(term.degree(var)).to_int();
                 term = term.subs(var == 1);
             }
@@ -319,7 +345,7 @@ namespace prodigy {
             return state;
         };
 
-        ex poly = _gf.expand().collect(varEx);
+        ex poly = _gf.expand().collect(vars);
         auto nops = poly.nops();
         std::vector<Dist::State> res;
         res.reserve(nops);
@@ -633,6 +659,8 @@ namespace prodigy {
     Dist Dist::updateSubtraction(const std::string updatedVar, const std::string subFrom, const std::string sub) const {
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
         EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
+        EXPECTS(!isKnownAsParam(subFrom), "cannot subtract from a parameter");
+        EXPECTS(!isKnownAsParam(sub), "cannot subtract a parameter");
         registerAllUnknownSymbsAsVars(possymbol(updatedVar));
         ex lhs = parseWithKnownSymbs(updatedVar);
         ex sub1 = parseWithKnownSymbs(subFrom);
@@ -641,6 +669,16 @@ namespace prodigy {
         ex res = _gf;
         // we subtract a variable from another variable
         if(isKnownAsVar(sub) && isKnownAsVar(subFrom)) {
+            if(this->isFiniteSupport() == troolean::TRUE) {
+                for(auto state: this->getTerms()) {
+                    EXPECTS(state.vals[subFrom] >= state.vals[sub], "result can be negative");
+                }
+            }
+            else {
+                // TODO how to check for this case? We probably need limits
+                // ex testFun = dist.marginal(updatedVar)._gf.normal().subs(lhs == 0);
+            }
+
             if(sub2 == lhs) {
                 if(sub1 == lhs) {
                     res = _gf.subs(lhs == 1);
@@ -654,30 +692,31 @@ namespace prodigy {
                 res = res.subs(sub2 == sub2 * GiNaC::pow(lhs, -1));
             }
         }
-        //we subtract a literal / parameter from a variable
+        //we subtract a literal from a variable
         else if(isKnownAsVar(subFrom)) {
+            EXPECTS(this->filterLess(subFrom, sub) == Dist("0"), "result can be negative");
             if(lhs != sub1) {
                 res = res.subs(lhs == 1).subs(sub1 == sub1 * lhs);
             }
             res = res * GiNaC::pow(lhs, -sub2);
         }
-        // we subtract a variable from a literal / parameter
+        // we subtract a variable from a literal
         else if(isKnownAsVar(sub)) {
+            EXPECTS(this->filterGreater(sub, subFrom) == Dist("0"), "result can be negative");
             if(sub2 == lhs) {
                 res = _gf.subs(lhs == GiNaC::pow(lhs, -1)) * GiNaC::pow(lhs, sub1);
             } else {
                 res = (_gf.subs(lhs == 1) * GiNaC::pow(lhs, sub1)).subs(sub2 == sub2 * GiNaC::pow(lhs, -1));
             }
         }
-        // we subtract two literals / parameters from each other
+        // we subtract two literals from each other
         else {
+            EXPECTS(sub1 >= sub2, "result can be negative");
             res = _gf.subs(lhs == 1) * GiNaC::pow(lhs, sub1 - sub2);
         }
 
-        auto dist = Dist(res);
-        // TODO test for negative values (this throws an exception in that case) (doesn't always work)
-        // ex testFun = dist.marginal(updatedVar)._gf.normal().subs(lhs == 0);
-        return dist;
+        return Dist(res);
+            
     }
 
     Dist Dist::updateModulo(const std::string &updatedVar, const std::string &left, const std::string &right, 
