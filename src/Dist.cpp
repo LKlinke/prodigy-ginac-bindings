@@ -299,14 +299,13 @@ namespace prodigy {
 
     std::vector<Dist::State> Dist::getTerms(const std::set<std::string>& vars) const {
         EXPECTS(this->isPolynomial(vars) == troolean::TRUE, "can only iterate over terms of a finite polynomial");
-        std::vector<ex> varEx;
-        varEx.reserve(vars.size());
+        lst varEx;
         for(const auto &var : vars) {
             EXPECTS(!isKnownAsParam(var), "given symbol is considered a parameter");
             if(isKnownAsVar(var)) {
-                varEx.push_back(_vars.at(var));
+                varEx.append(_vars.at(var));
             } else {
-                varEx.push_back(possymbol(var));
+                varEx.append(possymbol(var));
             }
         }
 
@@ -320,17 +319,17 @@ namespace prodigy {
             return state;
         };
 
-        ex poly = _gf.expand();
+        ex poly = _gf.expand().collect(varEx);
         auto nops = poly.nops();
         std::vector<Dist::State> res;
         res.reserve(nops);
         if(!is_a<add>(poly)) {
             res.push_back(handleProduct(poly));
-            return res;
-        }
-        for(auto i = 0; i < nops; i++) {
-            ex term = poly.op(i);
-            res.push_back(handleProduct(term));
+        } else {
+            for(auto i = 0; i < nops; i++) {
+                ex term = poly.op(i);
+                res.push_back(handleProduct(term));
+            }
         }
         return res;
     }
