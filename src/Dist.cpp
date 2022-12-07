@@ -310,7 +310,6 @@ namespace prodigy {
     }
 
     std::vector<Dist::State> Dist::getTerms(const std::set<std::string>& vars) const {
-        EXPECTS(this->isPolynomial(vars) == troolean::TRUE, "can only iterate over terms of a finite polynomial");
         lst varEx;
         for(const auto &var : vars) {
             EXPECTS(!isKnownAsParam(var), "given symbol is considered a parameter");
@@ -324,7 +323,6 @@ namespace prodigy {
     }
 
     std::vector<Dist::State> Dist::getTerms() const {
-        EXPECTS(this->isFiniteSupport() == troolean::TRUE, "can only iterate over terms of a finite polynomial");
         lst vars;
         for(auto var : this->getSymbols()) {
             if(isKnownAsVar(var)) {
@@ -335,6 +333,7 @@ namespace prodigy {
     }
 
     std::vector<Dist::State> Dist::getTerms(const lst &vars) const {
+        EXPECTS(this->_gf.is_polynomial(vars), "can only iterate over terms of a finite polynomial");
         auto handleProduct = [&](ex &term) {
             Dist::State state;
             for(ex var : vars) {
@@ -345,7 +344,7 @@ namespace prodigy {
             return state;
         };
 
-        ex poly = _gf.expand().collect(vars);
+        ex poly = _gf.expand().collect(vars, true);
         auto nops = poly.nops();
         std::vector<Dist::State> res;
         res.reserve(nops);
@@ -720,15 +719,18 @@ namespace prodigy {
     }
 
     Dist Dist::updateModulo(const std::string &updatedVar, const std::string &left, const std::string &right, 
-            const std::set<std::string> &variables, const bool &finite, const std::optional<std::string> &approx) const {
+            const std::set<std::string> &variables, const std::optional<bool> &finite, const std::optional<std::string> &approx) const {
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
         EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
         EXPECTS(!isKnownAsParam(left) && !isKnownAsParam(right), "cannot perform modulo of parameters");
         registerAllUnknownSymbsAsVars(possymbol(updatedVar));
         ex lhs = parseWithKnownSymbs(updatedVar);
 
+        // this is not the same as finite.value_or, which will always evaluate isFiniteSupport()
+        bool is_finite = finite.has_value() ? finite.value() : this->isFiniteSupport() == troolean::TRUE;
+
         // on finite distributions, iterate over all states
-        if(finite) {
+        if(is_finite) {
             ex res = 0;
             for(auto state : this->getTerms(variables)) {
                 numeric leftVar, rightVar;
@@ -759,7 +761,7 @@ namespace prodigy {
             for(auto state : marginal_r.getTerms({right})) {
                 auto right_val = std::to_string(state.vals.at(right));
                 res += this->filterEq(right, right_val)
-                    .updateModulo(updatedVar, left, right_val, variables, finite, approx)._gf;
+                    .updateModulo(updatedVar, left, right_val, variables, is_finite ? true : std::optional<bool>(), approx)._gf;
             }
             return Dist(res);
         }
@@ -771,7 +773,7 @@ namespace prodigy {
                 for(auto state : marginal_l.getTerms({left})) {
                     auto left_val = std::to_string(state.vals.at(left));
                     res += this->filterEq(left, left_val)
-                        .updateModulo(updatedVar, left_val, right, variables, finite, approx)._gf;
+                        .updateModulo(updatedVar, left_val, right, variables, is_finite ? true : std::optional<bool>(), approx)._gf;
                 }
             } else {
                 auto prog = this->arithmeticProgression(left, right);

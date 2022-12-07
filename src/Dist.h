@@ -288,7 +288,7 @@ namespace prodigy {
          * applies the update updatedVar := left % right to *this
          */
         Dist updateModulo(const std::string &updatedVar, const std::string &left, const std::string &right, 
-            const std::set<std::string> &variables, const bool &finite, const std::optional<std::string> &approx) const;
+            const std::set<std::string> &variables, const std::optional<bool> &finite, const std::optional<std::string> &approx) const;
 
         /**
          * applies the update updatedVar := numerator / denominator to *this
