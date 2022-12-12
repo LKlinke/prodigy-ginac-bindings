@@ -290,7 +290,7 @@ namespace prodigy {
                 varEx.append(possymbol(var));
             }
         }
-        if(_gf.is_polynomial(varEx)) {
+        if(_gf.normal().is_polynomial(varEx)) {
             return troolean::TRUE;
         }
         return troolean::FALSE;
@@ -333,7 +333,8 @@ namespace prodigy {
     }
 
     std::vector<Dist::State> Dist::getTerms(const lst &vars) const {
-        EXPECTS(this->_gf.is_polynomial(vars), "can only iterate over terms of a finite polynomial");
+        auto normal = _gf.normal();
+        EXPECTS(normal.is_polynomial(vars), "can only iterate over terms of a finite polynomial");
         auto handleProduct = [&](ex &term) {
             Dist::State state;
             for(ex var : vars) {
@@ -344,7 +345,7 @@ namespace prodigy {
             return state;
         };
 
-        ex poly = _gf.expand().collect(vars, true);
+        ex poly = normal.expand().collect(vars, true);
         auto nops = poly.nops();
         std::vector<Dist::State> res;
         res.reserve(nops);
