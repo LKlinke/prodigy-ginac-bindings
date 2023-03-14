@@ -33,14 +33,14 @@ TEST(Dist, E) {
 TEST(Dist, update) {
     Dist::resetSymbolCache();
     Dist dist = Fac::geometric("x", "1/2");
-    dist = dist.update("x", "x + 5");
+    dist = dist.updateSum("x", "x", "5");
     ASSERT_EQ(dist.E("x"), 6);
 }
 
 TEST(Dist, updateMonus) {
     Dist::resetSymbolCache();
     Dist dist {"1/2 + 1/2 * x^2"};
-    ASSERT_EQ(dist.update("x", "x - 1"), Dist {"1/2 + 1/2 * x"});
+    ASSERT_EQ(dist.updateSubtraction("x", "x", "1"), Dist {"1/2 + 1/2 * x"});
 }
 
 TEST(Dist, iid) {

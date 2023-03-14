@@ -416,98 +416,6 @@ namespace prodigy {
         }
     }
 
-    Dist Dist::update(const std::string &x, const std::string &e) const {
-        EXPECTS(!isKnownAsParam(x), "lhs of update may not be a parameter");
-        ex xExp = parseWithKnownSymbs(x); // might throw parse error
-        ex eExp = parseWithKnownSymbs(e);
-        EXPECTS(is_a<possymbol>(xExp), "lhs of update must be a symbol");
-        const auto &xSym = ex_to<possymbol>(xExp);
-        EXPECTS(eExp.info(info_flags::polynomial), "only polynomial arithmetic is supported in updates");
-        return _update(xSym, eExp); // might throw errors
-    }
-
-    Dist Dist::_update(const possymbol &x, const ex &e) const {
-        /*
-         * algorithm for evaluating given assignment x = e = term_1 + ... + term_n :
-         *
-         * 1) tmp = 0
-         * 2) tmp += term_1
-         *    ...
-         *    tmp += term_n
-         * 3) x = tmp
-         *
-         */
-        ex pol = e.expand();
-        Dist res{*this};
-        // 1) tmp = 0
-        possymbol tmp;
-        // 2) tmp += term_1 ... tmp += term_n
-        if (is_a<numeric>(pol) || is_a<symbol>(pol) || is_a<mul>(pol)) {
-            // eg pol = 1 || pol = x || pol = 2*y
-            res = res._incrAssgn(tmp, pol);
-        } else {
-            assert(is_a<add>(pol));
-            // eg pol = 1 + x
-            for (const auto &term : pol) {
-                res = res._incrAssgn(tmp, term);
-            }
-        }
-        // 3) x = tmp
-        res._gf = res._gf.subs(x == 1);
-        res._gf = res._gf.subs(tmp == x);
-        // consider x a variable from now on
-        registerAsVar(x);
-        return res;
-    }
-
-    Dist Dist::_incrAssgn(const possymbol &x, const ex &term) const {
-        ex res{_gf};
-        if (term.info(info_flags::nonnegint)) {
-            // x += k, with k a non-negative int
-            res *= GiNaC::pow(x, term);
-        } else if (term.info(info_flags::negint)) {
-            // x += k, with k a neg int
-            // we implement ``monus''
-            int k = ex_to<numeric>(term).to_int();
-            ex smallerK = series_to_poly(res.series(x, -k));
-            ex rest = res - smallerK;
-            res = rest*GiNaC::pow(x, term) + smallerK.subs(x == 1);
-        } else if (term.info(info_flags::symbol)) {
-            // x += y, with y a variable
-            res = res.subs(term == x * term);
-        } else if (is_a<mul>(term)) {
-            size_t subexpr_count = term.nops();
-            if (subexpr_count == 2){
-                // todo this case probably has some errors and needs debugging!!
-                // something like x*y || 2*x
-                ex first=term.op(0);
-                ex second=term.op(1);
-                if (first.info(info_flags::symbol) && second.info(info_flags::nonnegint)){
-                    // e.g. y*2
-                    res = res.subs(term == x*GiNaC::pow(first, second));
-                } else if (second.info(info_flags::symbol) && first.info(info_flags::nonnegint)){
-                    // e.g. 2*y
-                    res = res.subs(term == x * GiNaC::pow(second, first));
-                } else if (first.info(info_flags::symbol) && second.info(info_flags::negint)){
-                    // e.g. -y || -1 * y
-                    //std::cerr << "Warning! This might lead to undesired behavior!" << std::endl;
-                    res = res.subs(first == first*GiNaC::pow(x, second));
-                } else if (second.info(info_flags::symbol) && first.info(info_flags::negint)){
-                    // e.g. y * -1
-                    //std::cerr << "Warning! This might lead to undesired behavior!" << std::endl;
-                    res = res.subs(term == x*GiNaC::pow(second, first));
-                } else{
-                    EXPECTS(false, "multiplication of two variables not supported");
-                }
-            }
-            else throw prodigy::not_implemented_error{};
-            // todo implement multiplication for finite-support case
-        } else {
-            EXPECTS(false, "requested update operation is not supported");
-        }
-        return Dist{res};
-    }
-
     Dist Dist::updateVar(const std::string &updatedVar, const std::string &assignVar) const {
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
         EXPECTS(is_a<possymbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a possymbol");
@@ -939,7 +847,7 @@ namespace prodigy {
             return Dist("0");
         }
         EXPECTS(mass < this->mass(), "given probability mass is too large");
-        EXPECTS(mass > 0, "given probability mass must be non-negative)");
+        EXPECTS(mass > 0, "given probability mass must be non-negative");
         EXPECTS(isKnownAsVar(variable), "given variable is not known as variable");
         ex res = 0;
         ex mass_res = 0;
@@ -961,7 +869,7 @@ namespace prodigy {
         if (!isKnownAsVar(y)) {
             // then this is like x = iid(y, 0) so x simply becomes 0
             registerAsVar(possymbol(y)); // consider z variable from now on
-            return update(x, "0");
+            return updateVar(x, "0");
         }
         if (!isKnownAsVar(x)) {
             registerAsVar(possymbol(x));

@@ -43,7 +43,6 @@ PYBIND11_MODULE(pygin, m) {
             .def("marginal", [](const Dist& dist, const std::vector<string>& vars) {return dist.marginal(vars);})
             .def("is_zero", &Dist::isZero)
             .def("is_trivial", &Dist::isTrivial)
-            .def("update", &Dist::update)
             .def("updateIid", &Dist::updateIid)
             .def("filterLess", &Dist::filterLess)
             .def("filterEq", &Dist::filterEq)

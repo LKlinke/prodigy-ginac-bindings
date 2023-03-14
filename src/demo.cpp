@@ -14,7 +14,7 @@ int main() {
     std::cout << "Expected value " << dist.E("x") << std::endl;
     std::cout << std::endl;
     
-    std::cout << "Update " << dist.update("x", "x-y") << std::endl;
+    std::cout << "Update " << dist.updateSubtraction("x", "x", "y") << std::endl;
 
     /* example 2 */
 

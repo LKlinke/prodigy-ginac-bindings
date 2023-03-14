@@ -256,11 +256,6 @@ namespace prodigy {
          */
         std::vector<possymbol> getSymbols() const;
 
-        /*
-         * update distribution according to assignment x := e
-         */
-        Dist update(const std::string& x, const std::string& e) const;
-
         /**
          * performs the update updatedVar := assignVar
          * assignVar may be a variable or an integer (not a parameter)
@@ -306,8 +301,6 @@ namespace prodigy {
         */
         Dist approximateUnilaterally(const std::string &variable, const std::string &prob_mass) const;
     private:
-        Dist _update(const possymbol& x, const ex& e) const;
-        Dist _incrAssgn(const possymbol& x, const ex& term) const;
         std::vector<State> getTerms(const GiNaC::lst& vars) const;
     public:
 
