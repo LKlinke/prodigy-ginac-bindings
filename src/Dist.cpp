@@ -875,7 +875,10 @@ namespace prodigy {
             registerAsVar(possymbol(x));
         }
         // first marginalize x away in *this
-        ex res = _gf.normal().subs(_vars[x] == 1);
+        ex res = _gf.normal();
+        if (x != y) {
+            res = res.subs(_vars[x] == 1);
+        }
         // ySubs will be gf of y with (single) var replaced by x
         // do this by simply substituting all known vars for x
         // currently, gathering the symbols that actually occur in y is not implemented
@@ -884,7 +887,11 @@ namespace prodigy {
             ySubs = ySubs.subs(v.second == _vars[x]);
         }
         // do the actual substitution
-        res = res.subs(_vars[y] == _vars[y] * ySubs);
+        if (x != y) {
+            res = res.subs(_vars[y] == _vars[y] * ySubs);
+        } else {
+            res = res.subs(_vars[y] == ySubs);
+        }
         return Dist{res};
     }
 
