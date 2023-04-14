@@ -131,7 +131,7 @@ namespace prodigy {
 
     std::vector<std::string> Dist::find_symbols(const std::string &s) {
         // this function does not use the symbol registry, as opposed to Dist::getSymbols()
-        // to use the modulo operator %, we need to replace it with something ginac can parse
+        // to use the modulo operator %, we need to replace it with something GiNaC can parse
         std::string str = s;
         std::replace(str.begin(), str.end(), '%', '/');
 
@@ -142,6 +142,16 @@ namespace prodigy {
             res.push_back(i.first);
         }
         return res;
+    }
+
+    uint64_t Dist::nthRoot(const uint64_t number, const uint64_t root) {
+        ex power = pow(number, 1/ex(root));
+        if (is_a<numeric>(power)) {
+            numeric res = ex_to<numeric>(power);
+            if (res.is_integer())
+                return res.to_int();
+        }
+        throw std::invalid_argument("result is not an integer");
     }
 
 

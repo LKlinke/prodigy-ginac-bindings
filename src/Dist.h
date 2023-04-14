@@ -92,6 +92,8 @@ namespace prodigy {
 
         static std::vector<std::string> find_symbols(const std::string &exp);
 
+        static uint64_t nthRoot(const uint64_t number, const uint64_t root);
+
     private:
 
         static bool isSymbKnown(const possymbol& s);

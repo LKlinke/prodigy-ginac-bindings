@@ -95,7 +95,8 @@ PYBIND11_MODULE(pygin, m) {
     .def("reset_symbol_cache", &Dist::resetSymbolCache)
     .def("find_symbols", &Dist::find_symbols)
     .def("get_fresh_variable", &Dist::getFreshVariable)
-    .def("evaluate", &Dist::evaluate);
+    .def("evaluate", &Dist::evaluate)
+    .def("nth_root", &Dist::nthRoot);
 
     py::enum_<troolean>(m, "troolean")
             .value("false", troolean::FALSE)
