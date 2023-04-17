@@ -850,6 +850,55 @@ namespace prodigy {
         return Dist(res);
     }
 
+    Dist Dist::updateRoot(const std::string &updatedVar, const std::string &radicand, const std::string &index, const std::optional<std::string> &approx) const {
+        EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
+        EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
+        EXPECTS(!isKnownAsParam(radicand) && !isKnownAsParam(index), "cannot perform exponentiation of parameters");
+        registerAllUnknownSymbsAsVars(possymbol(updatedVar));
+        ex lhs = parseWithKnownSymbs(updatedVar);
+        ex number = parseWithKnownSymbs(radicand);
+        ex root = parseWithKnownSymbs(index);
+        ex res;
+
+        if(isKnownAsVar(radicand) || isKnownAsVar(index)) {
+            std::vector<std::string> variables(2);
+            if(isKnownAsVar(radicand))
+                variables.push_back(radicand);
+            if(isKnownAsVar(index))
+                variables.push_back(index);
+            auto marginal = this->marginal(variables);
+            if(isKnownAsVar(radicand) && marginal.isPolynomial({radicand}) != troolean::TRUE) {
+                EXPECTS(approx.has_value(), "radicand has infinite range");
+                marginal = marginal.approximateUnilaterally(radicand, approx.value());
+            }
+            if(isKnownAsVar(index) && marginal.isPolynomial({index}) != troolean::TRUE) {
+                EXPECTS(approx.has_value(), "index has infinite range");
+                marginal = marginal.approximateUnilaterally(index, approx.value());
+            }
+            res = 0;
+            for(auto state: marginal.getTerms()) {
+                auto value = nthRoot(isKnownAsVar(radicand) ? state.vals[radicand] : ex_to<numeric>(number).to_int(), isKnownAsVar(index) ? state.vals[index] : ex_to<numeric>(root).to_int());
+                auto filtered = *this;
+                if(isKnownAsVar(radicand)) {
+                    std::stringstream s;
+                    s << state.vals[radicand];
+                    filtered = filtered.filterEq(radicand, s.str());
+                }
+                if(isKnownAsVar(index)) {
+                    std::stringstream s;
+                    s << state.vals[index];
+                    filtered = filtered.filterEq(index, s.str());
+                }
+                res += filtered._gf.subs(lhs == 1) * pow(lhs, nthRoot(ex_to<numeric>(number).to_int(), ex_to<numeric>(root).to_int()));
+            }
+        }
+        else {
+            res = _gf.subs(lhs == 1) * pow(lhs, nthRoot(ex_to<numeric>(number).to_int(), ex_to<numeric>(root).to_int()));
+        }
+
+        return Dist(res);
+    }
+
     Dist Dist::approximateUnilaterally(const std::string &variable, const std::string &prob_mass) const {
         ex mass = parseWithKnownSymbs(prob_mass).evalf();
         EXPECTS(is_a<numeric>(mass), "given probability mass is not a number");

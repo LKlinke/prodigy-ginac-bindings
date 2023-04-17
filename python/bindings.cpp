@@ -83,6 +83,7 @@ PYBIND11_MODULE(pygin, m) {
             .def("update_modulo", &Dist::updateModulo)
             .def("update_division", &Dist::updateDivision)
             .def("update_power", &Dist::updatePower)
+            .def("update_root", &Dist::updateRoot)
             .def("approximate_unilaterally", &Dist::approximateUnilaterally);
 
     // global functions in python
