@@ -864,8 +864,12 @@ namespace prodigy {
             std::vector<std::string> variables(2);
             if(isKnownAsVar(radicand))
                 variables.push_back(radicand);
+            else
+                EXPECTS(is_a<numeric>(number), "radicand is neither a known symbol nor a numeric");
             if(isKnownAsVar(index))
                 variables.push_back(index);
+            else
+                EXPECTS(is_a<numeric>(root), "index is neither a known symbol nor a numeric");
             auto marginal = this->marginal(variables);
             if(isKnownAsVar(radicand) && marginal.isPolynomial({radicand}) != troolean::TRUE) {
                 EXPECTS(approx.has_value(), "radicand has infinite range");
@@ -877,22 +881,27 @@ namespace prodigy {
             }
             res = 0;
             for(auto state: marginal.getTerms()) {
-                auto value = nthRoot(isKnownAsVar(radicand) ? state.vals[radicand] : ex_to<numeric>(number).to_int(), isKnownAsVar(index) ? state.vals[index] : ex_to<numeric>(root).to_int());
                 auto filtered = *this;
+                int a, b;
                 if(isKnownAsVar(radicand)) {
                     std::stringstream s;
                     s << state.vals[radicand];
                     filtered = filtered.filterEq(radicand, s.str());
-                }
+                    a = state.vals[radicand];
+                } else
+                    a = ex_to<numeric>(number).to_int();
                 if(isKnownAsVar(index)) {
                     std::stringstream s;
                     s << state.vals[index];
                     filtered = filtered.filterEq(index, s.str());
-                }
-                res += filtered._gf.subs(lhs == 1) * pow(lhs, nthRoot(ex_to<numeric>(number).to_int(), ex_to<numeric>(root).to_int()));
+                    b = state.vals[index];
+                } else
+                    b = ex_to<numeric>(root).to_int();
+                res += filtered._gf.subs(lhs == 1) * pow(lhs, nthRoot(a, b));
             }
         }
         else {
+            EXPECTS(is_a<numeric>(number) && is_a<numeric>(root), "radicand or index is neither a known symbol nor a numeric");
             res = _gf.subs(lhs == 1) * pow(lhs, nthRoot(ex_to<numeric>(number).to_int(), ex_to<numeric>(root).to_int()));
         }
 
