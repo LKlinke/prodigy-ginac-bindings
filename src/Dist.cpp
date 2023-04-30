@@ -161,6 +161,7 @@ namespace prodigy {
         ex gf = parseWithKnownSymbs(gfStr); // might throw parse error
         registerAllUnknownSymbsAsVars(gf);
         _gf = gf;
+        assumptions = {};
     }
 
     Dist::Dist(const std::string &gfStr, const std::vector<std::string> &paramsStr) {
@@ -175,10 +176,36 @@ namespace prodigy {
         ex gf = parseWithKnownSymbs(gfStr); // might throw parse error
         registerAllUnknownSymbsAsVars(gf);
         _gf = gf;
+        assumptions = {};
     }
 
     const ex &Dist::gf() const {
         return _gf;
+    }
+
+    const std::vector<std::shared_ptr<Assumption>> Dist::getAssumptions() const {
+        return assumptions;
+    }
+
+    const Dist Dist::setAssumptions(const std::vector<std::shared_ptr<Assumption>>& assumptions) const {
+        Dist res(_gf);
+        res.assumptions = assumptions;
+        return res;
+    }
+
+    const bool Dist::assumptionsHold(const std::vector<std::shared_ptr<Assumption>>& assumptions) const {
+        for (auto assumption : assumptions) {
+            bool isImplied = false;
+            for (auto holds : this->assumptions) {
+                if(holds->implies(assumption)) {
+                    isImplied = true;
+                    break;
+                }
+            }
+            if(!isImplied)
+                return false;
+        }
+        return true;
     }
 
     ex Dist::mass(const std::optional<std::set<std::string>> vars) const {
@@ -719,6 +746,19 @@ namespace prodigy {
         ex div1 = parseWithKnownSymbs(numerator);
         ex div2 = parseWithKnownSymbs(denominator);
 
+        ex res;
+
+        if(isKnownAsVar(numerator) && is_a<numeric>(div2)) {
+            if(assumptionsHold({std::make_shared<Divisible>(numerator, ex_to<numeric>(div2).to_int())})){
+                if(lhs == div1) {
+                    res = _gf.subs(div1 == pow(div1, 1/div2));
+                } else {
+                    res = _gf.subs(lhs == 1).subs(div1 == div1*pow(lhs, 1/div2));
+                }
+                return Dist(res);
+            }
+        }
+
         Dist marginal_l, marginal_r;
         if(isKnownAsVar(numerator)) {
             marginal_l = this->marginal(numerator);
@@ -743,7 +783,6 @@ namespace prodigy {
             marginal_r = Dist(div2);
         }
 
-        ex res = 0;
         if(isKnownAsVar(numerator)) {
             for(auto state_l : marginal_l.getTerms({numerator})) {
                 if(isKnownAsVar(denominator)) {

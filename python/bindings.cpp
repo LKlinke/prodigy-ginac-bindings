@@ -84,7 +84,10 @@ PYBIND11_MODULE(pygin, m) {
             .def("update_division", &Dist::updateDivision)
             .def("update_power", &Dist::updatePower)
             .def("update_root", &Dist::updateRoot)
-            .def("approximate_unilaterally", &Dist::approximateUnilaterally);
+            .def("approximate_unilaterally", &Dist::approximateUnilaterally)
+            .def("set_assumptions", &Dist::setAssumptions)
+            .def("get_assumptions", &Dist::getAssumptions)
+            .def("assumptions_hold", &Dist::assumptionsHold);
 
     // global functions in python
     m.def("geometric", &DistributionFactory::geometric, "creates a geometric distribution")
@@ -107,6 +110,19 @@ PYBIND11_MODULE(pygin, m) {
     py::class_<Dist::CoefficientIterator>(m, "CoefficientIterator")
             .def("next", &Dist::CoefficientIterator::next)
             .def("rest", &Dist::CoefficientIterator::rest);
+
+
+    // explicitly define that we use shared pointers to reference Assumptions instead of the default unique pointers
+    // this means that if an instance goes out of scope in Python, it will keep existing in C++
+    py::class_<Assumption, std::shared_ptr<Assumption>>(m, "Assumption")
+            .def("implies", &Assumption::implies);
+
+    // explicitly define that Divisible inherits from Assumption
+    py::class_<Divisible, std::shared_ptr<Divisible>, Assumption>(m, "Divisible")
+            .def("implies", &Divisible::implies)
+            .def("get_lhs", &Divisible::getLhs)
+            .def("get_rhs", &Divisible::getRhs)
+            .def(py::init<const std::string&, const int&>());
 
 
     #ifdef VERSION_INFO

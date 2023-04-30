@@ -14,6 +14,7 @@
 #include "macros.h"
 #include "troolean.h"
 #include <optional>
+#include "Assumptions.h"
 
 
 namespace prodigy {
@@ -43,6 +44,8 @@ namespace prodigy {
         /* private member variables */
 
         ex _gf;
+
+        std::vector<std::shared_ptr<Assumption>> assumptions;
 
         /* static (global) part of class Dist */
 
@@ -144,13 +147,19 @@ namespace prodigy {
 
 
     private:
-        explicit Dist(ex gf) : _gf(std::move(gf)) { }
+        explicit Dist(ex gf) : _gf(std::move(gf)) { assumptions = {}; }
 
     public:
 
         /* public member functions */
 
         const ex& gf() const;
+
+        const std::vector<std::shared_ptr<Assumption>> getAssumptions() const;
+
+        const Dist setAssumptions(const std::vector<std::shared_ptr<Assumption>>& assumptions) const;
+
+        const bool assumptionsHold(const std::vector<std::shared_ptr<Assumption>>& assumptions) const;
 
         /*
          * returns the specified raw moment (possibly non-numeric due to presence of parameters)
