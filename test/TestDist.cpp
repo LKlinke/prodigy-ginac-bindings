@@ -58,6 +58,10 @@ TEST(Dist, iid) {
     Dist  dist = Dist {"1/2*x + 1/2*x^2"} * Dist {"y^2"};
     dist = dist.updateIid("res", Fac::geometric("T","1/3"), "y");
     ASSERT_EQ(dist, Dist {"(1/2 * x + 1/2 * x^2) * y^2"} * Fac::geometric("res", "1/3") * Fac::geometric("res", "1/3"));
+
+    dist = Dist {"x"};
+    dist = dist.updateIid("x", Fac::geometric("T", "p"), "x");
+    ASSERT_EQ(dist, Fac::geometric("x", "p"));
 }
 
 TEST(Dist, filter) {

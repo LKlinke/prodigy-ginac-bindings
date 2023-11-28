@@ -1046,26 +1046,57 @@ namespace prodigy {
         EXPECTS(d.mass() == 1, "the distribution wrapped into iid must not be a sub distribution");
         EXPECTS(d.isUnivariate() == troolean::TRUE, "the distribution wrapped into iid must be univariate");
         auto exX = parseWithKnownSymbs(x);
+        auto exY = parseWithKnownSymbs(y);
         EXPECTS(is_a<symbol>(exX), "Cannot assign a value to " + x);
+        EXPECTS(is_a<symbol>(exY) || exY.info(info_flags::nonnegint), "in " + x + ":= iid(D, " + y + "), " + y + " must be a symbol or a non-negative integer");
 
         Dist result(*this);
-        result.registerAsVar(ex_to<symbol>(exX));
-        auto exY = parseWithKnownSymbs(y);
+
         auto substitute = d._gf;
 
         // make temp variable to actual x variable:
         for(auto sym : d._vars)
                 substitute = substitute.subs(sym.second == exX);
 
-        // project x away if x is not y
-        if (x != y) {
-            result._gf = result._gf.normal();
-            result._gf = result._gf.subs(result._vars[x] == 1);
+        for(auto sym : d._params)
+            if(!result.isKnownAsParam(ex_to<symbol>(sym.second)) && !result.isKnownAsVar(ex_to<symbol>(sym.second))){
+                result.registerAsParam(ex_to<symbol>(sym.second));
+            }
+
+        // x is not known
+        if(!result.isKnownAsVar(ex_to<symbol>(exX))){
+            // x is a fresh variable.
+            result.registerAsVar(ex_to<symbol>(exX));
+            if(!result.isKnownAsVar(ex_to<symbol>(exY))){
+                if(exY.info(info_flags::nonnegint)){
+                    // y is just a number
+                    result._gf *= pow(substitute, exY);
+                }
+                // y is a fresh variable (nothing to do in this case).
+            } else {
+                // y is a known variable
+                result._gf = result._gf.subs(exY == (exY * substitute));
+            }
+        } else {
+            // x is a known variable thus we might need to marginalize.
+            if(!result.isKnownAsVar(ex_to<symbol>(exY))){
+                if(exY.info(info_flags::nonnegint)){
+                    // y is just a number -> marginalize
+                    result._gf = result._gf.subs(exX == 1) * pow(substitute, exY);
+                }
+                // y is a fresh variable (nothing to do in this case).
+            } else {
+                // y is a known variable
+                if (x == y){
+                    // in this case we do not have to marginalize!
+                    result._gf = result._gf.subs(exY == substitute);
+                } else {
+                    // z and y are different so we need to marginalize.
+                    result._gf = result._gf.subs(exX == 1).subs(exY == (exY * substitute));
+                }
+                
+            }
         }
-        if(is_a<symbol>(exY)) result._gf = result._gf.subs(exY == substitute * exY);
-        else if(exY.info(info_flags::nonnegint)) result._gf = result._gf.subs(exX == substitute);
-        else std::cout << "This should not happen in iid statement" <<std::endl;
-        
         return result;
     }
 
