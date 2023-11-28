@@ -194,6 +194,7 @@ TEST(EquivalenceCheck, randomWalk) {
 TEST(EquivalenceCheck, trivialIID){
     Dist::resetSymbolCache();
     Dist l0, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12;
+    Dist l0_m, l1_m, l2_m, l3_m, l4_m, l5_m, l6_m, l7_m, l8_m, l9_m, l10_m, l11_m, l12_m;
     /*
     * given loop
     *
@@ -253,20 +254,20 @@ TEST(EquivalenceCheck, trivialIID){
      *
      */
     cout << "Modified Inv" << endl;
-    l0 = Dist {"1/(1 - p*n)", "p"} *  Dist {"1/(1 - q*m)", "q"} * Dist {"1/(1 - r*t)", "r"};
-    l1 = l0.filterGreater("n", "0");
-    l2 = l1.updateVar("t", "0") * Dist {"1/6 * T * (T^6 - 1) / (T - 1)"};
-    l3 = l2.updateSum("m", "m", "t");
-    l4 = l3.updateVar("t", "0");
-    l5 = l4.updateSubtraction("n", "n", "1");
-    l6 = l5.filterGreater("n", "0");
-    l7 = l6.updateIid("t", Dist {"1/6 * T * (T^6 - 1) / (T - 1)"}, "n");
-    l8 = l7.updateSum("m", "m", "t");
-    l9 = l8.updateVar("n", "0");
-    l10 = l9.updateVar("t", "0");
-    l11 = l10 + l5.filterLeq("n", "0");
-    l12 = l11 + l0.filterLeq("n", "0");
-    Dist res2 = l12;
+    l0_m = Dist {"1/(1 - p*n)", "p"} *  Dist {"1/(1 - q*m)", "q"} * Dist {"1/(1 - r*t)", "r"};
+    l1_m = l0_m.filterGreater("n", "0");
+    l2_m = l1_m.updateVar("t", "0") * Dist {"1/6 * t * (t^6 - 1) / (t - 1)"};
+    l3_m = l2_m.updateSum("m", "m", "t");
+    l4_m = l3_m.updateVar("t", "0");
+    l5_m = l4_m.updateSubtraction("n", "n", "1");
+    l6_m = l5_m.filterGreater("n", "0");
+    l7_m = l6_m.updateIid("t", Dist {"1/6 * T * (T^6 - 1) / (T - 1)"}, "n");
+    l8_m = l7_m.updateSum("m", "m", "t");
+    l9_m = l8_m.updateVar("n", "0");
+    l10_m = l9_m.updateVar("t", "0");
+    l11_m = l10_m + l5_m.filterLeq("n", "0");
+    l12_m = l11_m + l0_m.filterLeq("n", "0");
+    Dist res2 = l12_m;
 
     ASSERT_EQ(res1, res2);
 }
