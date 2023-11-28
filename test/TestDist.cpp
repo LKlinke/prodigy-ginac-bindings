@@ -35,6 +35,19 @@ TEST(Dist, update) {
     ASSERT_EQ(dist.E("x"), 6);
 }
 
+TEST(Dist, updateVar) {
+
+    Dist dist = Fac::uniform("x", "0", "4");
+    
+
+    EXPECT_ANY_THROW(dist.updateVar("x", "x+123"));
+
+    dist = dist.updateVar("y", "x");
+
+    dist = dist.updateVar("y", "w");
+    ASSERT_EQ(dist, Dist {"1/5 * (1+w*x+(w*x)^2+(w*x)^3+(w*x)^4)"});
+}
+
 TEST(Dist, updateMonus) {
     Dist dist {"1/2 + 1/2 * x^2"};
     EXPECT_ANY_THROW(dist.updateSubtraction("x", "x", "1"));

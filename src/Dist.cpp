@@ -473,22 +473,34 @@ namespace prodigy {
     }
 
     Dist Dist::updateVar(const std::string &updatedVar, const std::string &assignVar) const {
-        ex exUpdatedVar = ex_to<symbol>(parseWithKnownSymbs(updatedVar));
-        EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
-        EXPECTS(!isKnownAsParam(assignVar), "given rhs is a parameter");
-        EXPECTS(is_a<symbol>(exUpdatedVar), "lhs is not a symbol");
+        // basically encoding a skip statement.
         if(updatedVar == assignVar) {
             return *this;
         }
-        Dist result = Dist(*this);
         
-        ex rhs = parseWithKnownSymbs(assignVar);
-        ex lhs = _vars.at(updatedVar);
-        if(is_a<symbol>(rhs)) {
-            EXPECTS(isKnownAsVar(assignVar), "cannot substitute " + updatedVar + " := " + assignVar + " -- " + assignVar + " is unknown.");
-            result._gf = result._gf.subs(lhs==1).subs(rhs == rhs * lhs);
+        // validate input
+        Dist result = Dist(*this);
+        ex exUpdatedVar = parseWithKnownSymbs(updatedVar);
+        ex exAssignVar = parseWithKnownSymbs(assignVar);
+        EXPECTS(!isKnownAsParam(updatedVar), "'variable' " + updatedVar + " is known as a parameter");
+        EXPECTS(!isKnownAsParam(assignVar), "'variable' " + assignVar + " is a parameter");
+        EXPECTS(is_a<symbol>(exAssignVar) || exAssignVar.info(info_flags::nonnegint), "The rhs mus be a variable or a non-negative integer, but was " + assignVar);
+        EXPECTS(is_a<symbol>(exUpdatedVar), "'variable' " + updatedVar + " is not a symbol");
+        
+        if (!result.isKnownAsVar(ex_to<symbol>(exUpdatedVar))){
+            result.registerAsVar(ex_to<symbol>(exUpdatedVar));
+        }
+
+        if(is_a<symbol>(exAssignVar)) {
+            //EXPECTS(isKnownAsVar(assignVar), "cannot substitute " + updatedVar + " := " + assignVar + " -- " + assignVar + " is unknown.");
+            if(!result.isKnownAsVar(ex_to<symbol>(exAssignVar))){
+                result.registerAsVar(ex_to<symbol>(exAssignVar));
+                result._gf = result._gf.subs(exUpdatedVar == exAssignVar);
+            } else {
+                result._gf = result._gf.subs(exUpdatedVar == 1).subs(exAssignVar == exAssignVar * exUpdatedVar);
+            }
         } else {
-            result._gf = (rhs != 0 ? result._gf : result._gf.normal()).subs(lhs == 1) * GiNaC::pow(lhs, rhs);
+            result._gf = (exAssignVar != 0 ? result._gf : result._gf.normal()).subs(exUpdatedVar == 1) * GiNaC::pow(exUpdatedVar, exAssignVar);
         }
         return result;
     }
