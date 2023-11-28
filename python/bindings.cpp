@@ -99,7 +99,7 @@ PYBIND11_MODULE(pygin, m) {
     .def("dirac", &DistributionFactory::dirac, "creates a Dirac distribution (point mass)")
     .def("catalan", &DistributionFactory::catalan, "creates a Catalan distribution (runtime distribution of 1D random walk)")
     .def("find_symbols", &Dist::find_symbols)
-    .def("evaluate", &Dist::evaluate())
+    .def("evaluate", &Dist::evaluate)
     .def("nth_root", &Dist::nthRoot);
 
     py::enum_<troolean>(m, "troolean")
