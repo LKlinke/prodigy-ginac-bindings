@@ -50,7 +50,6 @@ PYBIND11_MODULE(pygin, m) {
             .def("filterLeq", &Dist::filterLeq)
             .def("filterGreater", &Dist::filterGreater)
             .def("filterGeq", &Dist::filterGeq)
-            .def("get_fresh_variable", &Dist::getFreshVariable)
             .def("coefficient_iterator", &Dist::coefficientIterator)
             .def("is_known_as_var", [](const Dist& dist, const string& x) {return dist.isKnownAsVar(x);})
             .def("is_known_as_param", [](const Dist& dist, const string& x) {return dist.isKnownAsParam(x);})
@@ -99,6 +98,7 @@ PYBIND11_MODULE(pygin, m) {
     .def("dirac", &DistributionFactory::dirac, "creates a Dirac distribution (point mass)")
     .def("catalan", &DistributionFactory::catalan, "creates a Catalan distribution (runtime distribution of 1D random walk)")
     .def("find_symbols", &Dist::find_symbols)
+    .def("get_fresh_variable", &Dist::getFreshVariable)
     .def("evaluate", &Dist::evaluate)
     .def("nth_root", &Dist::nthRoot);
 
