@@ -15,46 +15,54 @@ namespace prodigy {
 /* static (global) portion of Dist */
 
 // initialize static variables of class Dist
-    Dist::str2sym Dist::_params;
-    Dist::str2sym Dist::_vars;
 
-    Dist::str2sym Dist::paramsAndVars() {
+    std::vector<std::string> Dist::find_symbols(const std::string &s) {
+        // this function does not use the symbol registry, as opposed to Dist::getSymbols()
+        // to use the modulo operator %, we need to replace it with something GiNaC can parse
+        std::string str = s;
+        std::replace(str.begin(), str.end(), '%', '/');
+
+        GiNaC::parser p;
+        ex parsed = p(str);
+        std::vector<std::string> res;
+        for(auto i : p.get_syms()) {
+            res.push_back(i.first);
+        }
+        return res;
+    }
+
+    Dist::str2sym Dist::paramsAndVars() const {
         str2sym res = _params;
         res.insert(_vars.begin(), _vars.end());
         return res;
     }
 
-    bool Dist::isSymbKnown(const possymbol &s) {
-        return _params.count(s.get_name()) > 0 || _vars.count(s.get_name()) > 0;
+    const bool Dist::isSymbKnown(const symbol &s) const {
+        return _params.find(s.get_name()) != _params.end() || _vars.find(s.get_name()) != _vars.end();
     }
 
-    bool Dist::isSymbKnown(const std::string &s) {
-        return _params.count(s) > 0 || _vars.count(s) > 0;
+    const bool Dist::isSymbKnown(const std::string &s) const {
+        return _params.find(s) != _params.end() || _vars.find(s) != _vars.end();
     }
 
-    bool Dist::isKnownAsVar(const possymbol &s) {
-        return _vars.count(s.get_name()) > 0;
+    const bool Dist::isKnownAsVar(const symbol &s) const {
+        return _vars.find(s.get_name()) != _vars.end();
     }
 
-    bool Dist::isKnownAsVar(const std::string &s) {
-        return _vars.count(s) > 0;
+    const bool Dist::isKnownAsVar(const std::string &s) const {
+        return _vars.find(s) != _vars.end();
     }
 
-    bool Dist::isKnownAsParam(const possymbol &s) {
-        return _params.count(s.get_name()) > 0;
+    const bool Dist::isKnownAsParam(const symbol &s) const {
+        return _params.find(s.get_name()) != _params.end();
     }
 
-    bool Dist::isKnownAsParam(const std::string &s) {
-        return _params.count(s) > 0;
+    const bool Dist::isKnownAsParam(const std::string &s) const {
+        return _params.find(s) != _params.end();
     }
 
-    ex Dist::parseWithKnownSymbs(const std::string &s) {
-        auto syms = paramsAndVars();
-        for(auto found : find_symbols(s)) {
-            if(!isKnownAsVar(found) && !isKnownAsParam(found)) {
-                syms[found] = possymbol(found);
-            }
-        }
+    ex Dist::parseWithKnownSymbs(const std::string &s) const {
+        str2sym syms = this->paramsAndVars();
         parser pars(syms);
         ex parsed = pars(s); // might throw parse error
         return parsed;
@@ -63,8 +71,7 @@ namespace prodigy {
     void Dist::registerAllUnknownSymbsAsVars(const ex &e) {
         for (auto it = e.preorder_begin(); it != e.preorder_end(); ++it) {
             if (is_a<symbol>(*it)) {
-                EXPECTS(is_a<possymbol>(*it), "variable is not a possymbol");
-                const auto &s = ex_to<possymbol>(*it);
+                const auto &s = ex_to<symbol>(*it);
                 if (!isSymbKnown(s)) {
                     _vars[s.get_name()] = s;
                 }
@@ -75,8 +82,7 @@ namespace prodigy {
     void Dist::registerAllUnknownSymbsAsParams(const ex &e) {
         for (auto it = e.preorder_begin(); it != e.preorder_end(); ++it) {
             if (is_a<symbol>(*it)) {
-                EXPECTS(is_a<possymbol>(*it), "parameter is not a possymbol");
-                const auto &s = ex_to<possymbol>(*it);
+                const auto &s = ex_to<symbol>(*it);
                 if (!isSymbKnown(s)) {
                     _params[s.get_name()] = s;
                 }
@@ -84,12 +90,12 @@ namespace prodigy {
         }
     }
 
-    void Dist::registerAsVar(const possymbol &p) {
+    void Dist::registerAsVar(const symbol &p) {
         assert(!isKnownAsParam(p));
         _vars[p.get_name()] = p;
     }
 
-    void Dist::registerAsParam(const possymbol &p) {
+    void Dist::registerAsParam(const symbol &p) {
         assert(!isKnownAsVar(p));
         _params[p.get_name()] = p;
     }
@@ -120,28 +126,22 @@ namespace prodigy {
     }
 
     int Dist::evaluate(const std::string &expr, const std::map<std::string, int> &valuations) {
-        parser p;
-        ex res = p(expr);
-        for(auto sym : p.get_syms()) {
-            res = res.subs(sym.second == valuations.at(sym.first));
+        
+        ex res = parseWithKnownSymbs(expr);
+        
+        lst names;
+        lst values;
+        for(const auto& var_val : valuations) {
+            if(isKnownAsVar(var_val.first)){
+                names.append(_vars[var_val.first]);
+            } else if(isKnownAsParam(var_val.first)){
+                names.append(_params[var_val.first]);
+            }
+            values.append(valuations.at(var_val.first));
         }
+        res = res.subs(names, values);
         EXPECTS(res.info(info_flags::integer), "result of valuation is not an integer");
         return ex_to<numeric>(res).to_int();
-    }
-
-    std::vector<std::string> Dist::find_symbols(const std::string &s) {
-        // this function does not use the symbol registry, as opposed to Dist::getSymbols()
-        // to use the modulo operator %, we need to replace it with something GiNaC can parse
-        std::string str = s;
-        std::replace(str.begin(), str.end(), '%', '/');
-
-        GiNaC::parser p;
-        ex parsed = p(str);
-        std::vector<std::string> res;
-        for(auto i : p.get_syms()) {
-            res.push_back(i.first);
-        }
-        return res;
     }
 
     uint64_t Dist::nthRoot(const uint64_t number, const uint64_t root) {
@@ -158,23 +158,31 @@ namespace prodigy {
 /* public interface of dist */
 
     Dist::Dist(const std::string &gfStr) {
-        ex gf = parseWithKnownSymbs(gfStr); // might throw parse error
-        registerAllUnknownSymbsAsVars(gf);
-        _gf = gf;
+        parser pars_vars;
+        ex e = pars_vars(gfStr);
+        for (auto it = e.preorder_begin(); it != e.preorder_end(); ++it) {
+            if (is_a<symbol>(*it)) {
+                const auto &s = ex_to<symbol>(*it);
+                if (!isSymbKnown(s)) {
+                    _vars[s.get_name()] = s;
+                }
+            }
+        }
+        _gf=e;
+        
         assumptions = {};
     }
 
     Dist::Dist(const std::string &gfStr, const std::vector<std::string> &paramsStr) {
+        parser pars_vars_and_params;
+        ex gf = pars_vars_and_params(gfStr); // might throw parse error
+        registerAllUnknownSymbsAsVars(gf);
         for(const auto& pStr : paramsStr) {
-            ex p = parseWithKnownSymbs(pStr); // might throw parse error
-            EXPECTS(is_a<possymbol>(p), "given parameter is not a symbol");
-            const auto &pSym = ex_to<possymbol>(p);
-            EXPECTS(!isKnownAsVar(pSym), "given parameter was registered as variable before");
-            // TODO we might want to not register the param if gf does not contain it at all
+            ex param = pars_vars_and_params(pStr); // might throw parse error
+            const auto &pSym = ex_to<symbol>(param);
+            deregister(pStr);
             registerAsParam(pSym);
         }
-        ex gf = parseWithKnownSymbs(gfStr); // might throw parse error
-        registerAllUnknownSymbsAsVars(gf);
         _gf = gf;
         assumptions = {};
     }
@@ -215,15 +223,20 @@ namespace prodigy {
          * encapsulate this somehow because substitution occurs elsewhere too
          */
         res = res.normal();
+        lst names;
+        lst values;
         if(!vars.has_value()) {
             for (const auto &v : _vars) {
-                res = res.subs(v.second == 1);
-            }
+                names.append(v.second);
+                values.append(1);
+            } 
         } else {
             for (auto v : vars.value()) {
-                res = res.subs(_vars.at(v) == 1);
+                names.append(_vars.at(v));
+                values.append(1);
             }
         }
+        res = res.subs(names, values);
         return res;
     }
 
@@ -236,33 +249,46 @@ namespace prodigy {
     }
 
     Dist Dist::normalize() const {
-        return Dist{_gf / mass()};
+        Dist result(*this);
+        result._gf = result._gf / result.mass();
+        return result;
     }
 
     Dist Dist::marginal(const std::string &x) const {
-        EXPECTS(!isKnownAsParam(x), "given symbol is considered a parameter");
+        EXPECTS(!this->isKnownAsParam(x), "given symbol is considered a parameter");
+        Dist result(*this);
         ex res{_gf.expand().normal()};
+        lst names, values;
         for (const auto &v : _vars) {
             if (v.first != x) {
-                res = res.subs(v.second == 1);
+                names.append(v.second);
+                values.append(1);
+                result._vars.erase(v.first);
             }
         }
-        return Dist{res};
+        res = res.subs(names, values);
+        result._gf = res;
+        return result;
     }
 
     Dist Dist::marginal(const std::vector<std::string>& vars) const {
         for (const auto &v : vars) {
             EXPECTS(!isKnownAsParam(v), "given symbol is considered a parameter");
         }
+        Dist result(*this);
         ex res{_gf.normal()};
         // go over all variables v we currently know
+        lst names, values;
         for (const auto &v : _vars) {
             // if v is not in the given list vars then project it away
             if (std::find(vars.begin(), vars.end(), v.first) == vars.end()) {
-                res = res.subs(v.second == 1);
+                names.append(v.second);
+                values.append(1);
             }
         }
-        return Dist{res};
+        res = res.subs(names, values);
+        result._gf = res;
+        return result;
     }
 
     troolean Dist::isZero() const {
@@ -284,8 +310,7 @@ namespace prodigy {
         str2sym found;
         for(auto it = gfNormal.preorder_begin(); it != gfNormal.preorder_end(); ++it) {
             if(is_a<symbol>(*it)) {
-                EXPECTS(is_a<possymbol>(*it), "symbol is not a possymbol");
-                const auto& s = ex_to<possymbol>(*it);
+                const auto& s = ex_to<symbol>(*it);
                 if(isKnownAsParam(s)) continue;
                 assert(isKnownAsVar(s));
                 found[s.get_name()] = s;
@@ -324,7 +349,7 @@ namespace prodigy {
             if (isKnownAsVar(var)) {
                 varEx.append(_vars.at(var));
             } else {
-                varEx.append(possymbol(var));
+                varEx.append(symbol(var));
             }
         }
         if(_gf.normal().is_polynomial(varEx)) {
@@ -353,19 +378,16 @@ namespace prodigy {
             if(isKnownAsVar(var)) {
                 varEx.append(_vars.at(var));
             } else {
-                varEx.append(possymbol(var));
+                varEx.append(symbol(var));
             }
         }
         return getTerms(varEx);
     }
 
     std::vector<Dist::State> Dist::getTerms() const {
-        lst vars;
-        for(auto var : this->getSymbols()) {
-            if(isKnownAsVar(var)) {
-                vars.append(var);
-            }
-        }
+        std::set<std::string> vars;
+        for(auto var : _vars)
+            vars.insert(var.first);
         return getTerms(vars);
     }
 
@@ -419,15 +441,12 @@ namespace prodigy {
         return res;
     }
 
-    std::vector<possymbol> Dist::getSymbols() const {
-        std::vector<possymbol> res;
-        for(auto i = _gf.preorder_begin(); i != _gf.preorder_end(); i++) {
-            if(is_a<symbol>(*i)) {
-                EXPECTS(is_a<possymbol>(*i), "symbol is not a possymbol");
-                if(res.empty() || std::find(res.begin(), res.end(), *i) == res.end()) {
-                    res.push_back(ex_to<possymbol>(*i));
-                }
-            }
+    std::vector<symbol> Dist::getSymbols() const {
+        
+        std::vector<symbol> res;
+
+        for(const auto& item : this->paramsAndVars() ) {
+            res.push_back(ex_to<symbol>(item.second));
         }
         return res;
     }
@@ -454,86 +473,100 @@ namespace prodigy {
     }
 
     Dist Dist::updateVar(const std::string &updatedVar, const std::string &assignVar) const {
+        ex exUpdatedVar = ex_to<symbol>(parseWithKnownSymbs(updatedVar));
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
-        EXPECTS(is_a<possymbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a possymbol");
-        registerAllUnknownSymbsAsVars(possymbol(updatedVar));
+        EXPECTS(!isKnownAsParam(assignVar), "given rhs is a parameter");
+        EXPECTS(is_a<symbol>(exUpdatedVar), "lhs is not a symbol");
         if(updatedVar == assignVar) {
             return *this;
         }
-
-        EXPECTS(!isKnownAsParam(assignVar), "given rhs is a parameter");
+        Dist result = Dist(*this);
+        
         ex rhs = parseWithKnownSymbs(assignVar);
         ex lhs = _vars.at(updatedVar);
         if(is_a<symbol>(rhs)) {
-            EXPECTS(is_a<possymbol>(rhs), "rhs is not a possymbol");
-            return Dist(_gf.subs(lhs == 1).subs(rhs == lhs * rhs));
+            EXPECTS(isKnownAsVar(assignVar), "cannot substitute " + updatedVar + " := " + assignVar + " -- " + assignVar + " is unknown.");
+            result._gf = result._gf.subs(lhs==1).subs(rhs == rhs * lhs);
         } else {
-            return Dist((rhs != 0 ? _gf : _gf.normal()).subs(lhs == 1) * GiNaC::pow(lhs, rhs));
+            result._gf = (rhs != 0 ? result._gf : result._gf.normal()).subs(lhs == 1) * GiNaC::pow(lhs, rhs);
         }
+        return result;
     }
 
     Dist Dist::updateSum(const std::string &updatedVar, const std::string &firstSummand, const std::string secondSummand) const {
-        EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
-        EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
-        registerAllUnknownSymbsAsVars(possymbol(updatedVar));
-        ex lhs = parseWithKnownSymbs(updatedVar);
-        ex sum1 = parseWithKnownSymbs(firstSummand);
-        ex sum2 = parseWithKnownSymbs(secondSummand);
+        EXPECTS(!isKnownAsParam(updatedVar), "'variable' " + updatedVar + " is known as a parameter");
+
+        auto exUpdatedVar = parseWithKnownSymbs(updatedVar);
+        auto exFirstSummand = parseWithKnownSymbs(firstSummand);
+        auto exSecondSummand = parseWithKnownSymbs(secondSummand);
+
+        
+        EXPECTS(is_a<symbol>(exUpdatedVar), "'variable' " + updatedVar + " is not a symbol");
+        
+        
+        Dist res(*this);
+        res.registerAllUnknownSymbsAsVars(exUpdatedVar);
 
         // we add two variables
-        if(isKnownAsVar(firstSummand) && isKnownAsVar(secondSummand)) {
-            if(sum2 == lhs) {
-                ex tmp = sum1;
-                sum1 = sum2;
-                sum2 = tmp;
+        if(res.isKnownAsVar(firstSummand) && res.isKnownAsVar(secondSummand)) {
+            if(exSecondSummand == exUpdatedVar) {
+                ex tmp = exFirstSummand;
+                exFirstSummand = exSecondSummand;
+                exSecondSummand = tmp;
             }
-            if(sum1 == lhs) {
-                if(sum2 == lhs) {
-                    return Dist(_gf.subs(lhs == GiNaC::pow(lhs, 2)));
+            if(exFirstSummand == exUpdatedVar) {
+                if(exSecondSummand == exUpdatedVar) {
+                    res._gf = res._gf.subs(exUpdatedVar == GiNaC::pow(exUpdatedVar, 2));
                 } else {
-                    return Dist(_gf.subs(sum2 == sum2*lhs));
+                    res._gf = res._gf.subs(exSecondSummand == exSecondSummand * exUpdatedVar);
                 }
             } else {
-                return Dist(_gf.subs(lhs == 1).subs(sum1 == sum1 * lhs).subs(sum2 == sum2 * lhs));
+                res._gf = res._gf.subs(exUpdatedVar == 1).subs(exFirstSummand == exFirstSummand * exUpdatedVar).subs(exSecondSummand == exSecondSummand * exUpdatedVar);
             }
+            return res;
         }
         // we add a variable and a literal / parameter
-        else if(isKnownAsVar(firstSummand) || isKnownAsVar(secondSummand)) {
-            ex var = sum1;
-            ex lit = sum2;
-            if(isKnownAsVar(secondSummand)) {
-                var = sum2;
-                lit = sum1;
+        else if(res.isKnownAsVar(firstSummand) || res.isKnownAsVar(secondSummand)) {
+            ex var = exFirstSummand;
+            ex lit = exSecondSummand;
+            if(res.isKnownAsVar(secondSummand)) {
+                var = exSecondSummand;
+                lit = exFirstSummand;
             }
-            ex res = _gf;
-            if(var != lhs) {
-                res = res.subs(lhs == 1).subs(var == lhs * var);
+            if(var != exUpdatedVar) {
+                res._gf = res._gf.subs(exUpdatedVar == 1).subs(var == exUpdatedVar * var);
             }
-            return Dist(res * GiNaC::pow(lhs, lit));
+            res._gf *= GiNaC::pow(exUpdatedVar, lit);
+            return res;
         }
         // we add two literals / parameters
         else {
-            return Dist(_gf.subs(lhs == 1) * GiNaC::pow(lhs, sum1 + sum2));
+            res._gf = res._gf.subs(exUpdatedVar ==1) * GiNaC::pow(exUpdatedVar, exFirstSummand + exSecondSummand);
+            return res;
         }
     }
 
     Dist Dist::updateProduct(const std::string &updatedVar, const std::string &firstFactor, const std::string &secondFactor, 
             const std::set<std::string> &variables, const bool &finite, const std::optional<std::string> &approx) const {
-        EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
-        EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
+        EXPECTS(!isKnownAsParam(updatedVar), "'variable' " + updatedVar + " is known as a parameter");
         EXPECTS(!isKnownAsParam(firstFactor) && !isKnownAsParam(secondFactor), "cannot perform multiplication of parameters");
-        registerAllUnknownSymbsAsVars(possymbol(updatedVar));
-        ex lhs = parseWithKnownSymbs(updatedVar);
-        ex fac1 = parseWithKnownSymbs(firstFactor);
-        ex fac2 = parseWithKnownSymbs(secondFactor);
+       
+        auto exUpdatedVar = parseWithKnownSymbs(updatedVar);
+        EXPECTS(is_a<symbol>(exUpdatedVar), "'variable' " + updatedVar + " is not a symbol");
+        
+        Dist res(*this);
+        res.registerAllUnknownSymbsAsVars(exUpdatedVar);
+        ex lhs = res.parseWithKnownSymbs(updatedVar);
+        ex fac1 = res.parseWithKnownSymbs(firstFactor);
+        ex fac2 = res.parseWithKnownSymbs(secondFactor);
 
         // we multiply two variables
-        if(isKnownAsVar(firstFactor) && isKnownAsVar(secondFactor)) {
+        if(res.isKnownAsVar(firstFactor) && res.isKnownAsVar(secondFactor)) {
             // infinite distribution
             if(!finite) {
-                auto marginal_l = this->marginal(firstFactor);
+                auto marginal_l = res.marginal(firstFactor);
                 auto finite_left = marginal_l.isPolynomial({firstFactor}) == troolean::TRUE;
-                auto marginal_r = this->marginal(secondFactor);
+                auto marginal_r = res.marginal(secondFactor);
                 auto finite_right = marginal_r.isPolynomial({secondFactor}) == troolean::TRUE;
 
                 if(!finite_left && !finite_right) {
@@ -558,31 +591,33 @@ namespace prodigy {
                     infinite_var = firstFactor;
                     other_finite = finite_left; // == false
                 }
-                ex res = 0;
+                ex result = 0;
                 for(auto state : finite.getTerms({finite_var})) {
                     // state.vals contains only one item
                     auto val = std::to_string(state.vals[finite_var]);
-                    res += this->filterEq(finite_var, val)
+                    result += res.filterEq(finite_var, val)
                         .updateProduct(updatedVar, val, infinite_var, variables, other_finite, approx)._gf;
                 }
-                return Dist(res);
+                res._gf = result;
+                return res;
             }
             // finite distribution
             else {
-                ex res = _gf;
-                for(auto state : this->getTerms(variables)) {
-                    ex term = parseWithKnownSymbs(state.toString());
-                    res -= term;
+                ex result = res._gf;
+                for(auto state : res.getTerms(variables)) {
+                    ex term = res.parseWithKnownSymbs(state.toString());
+                    result -= term;
                     term = term.subs(lhs == 1) * GiNaC::pow(lhs, state.vals.at(firstFactor) * state.vals.at(secondFactor));
-                    res += term;
+                    result += term;
                 }
-                return Dist(res);
+                res._gf = result;
+                return res;
             }
         }
         // we multiply a variable with a literal
-        else if(isKnownAsVar(firstFactor) || isKnownAsVar(secondFactor)) {
+        else if(res.isKnownAsVar(firstFactor) || res.isKnownAsVar(secondFactor)) {
             ex var, lit;
-            if(isKnownAsVar(firstFactor)) {
+            if(res.isKnownAsVar(firstFactor)) {
                 var = fac1;
                 lit = fac2;
             } else {
@@ -590,32 +625,40 @@ namespace prodigy {
                 lit = fac1;
             }
             if(var == lhs) {
-                return Dist(_gf.subs(lhs == GiNaC::pow(lhs, lit)));
+                res._gf = res._gf.subs(lhs == GiNaC::pow(lhs, lit));
+                return res;
             } else {
-                return Dist(_gf.subs(lhs == 1).subs(var == var * GiNaC::pow(lhs, lit)));
+                res._gf = res._gf.subs(lhs == 1).subs(var == var * GiNaC::pow(lhs, lit));
+                return res;
             }
         }
         // we multiply two literals
         else {
-            return Dist(_gf.subs(lhs == 1) * GiNaC::pow(lhs, fac1 * fac2));
+            res._gf = res._gf.subs(lhs == 1) * GiNaC::pow(lhs, fac1 * fac2);
+            return res;
         }
     }
 
     Dist Dist::updateSubtraction(const std::string updatedVar, const std::string subFrom, const std::string sub) const {
-        EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
-        EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
-        EXPECTS(!isKnownAsParam(subFrom), "cannot subtract from a parameter");
-        EXPECTS(!isKnownAsParam(sub), "cannot subtract a parameter");
-        registerAllUnknownSymbsAsVars(possymbol(updatedVar));
-        ex lhs = parseWithKnownSymbs(updatedVar);
-        ex sub1 = parseWithKnownSymbs(subFrom);
-        ex sub2 = parseWithKnownSymbs(sub);
+        EXPECTS(!isKnownAsParam(subFrom), "cannot subtract from parameter " + subFrom);
+        EXPECTS(!isKnownAsParam(sub), "cannot subtract a parameter " + sub);
 
-        ex res = _gf;
+        EXPECTS(!isKnownAsParam(updatedVar), "'variable' " + updatedVar + " is known as a parameter");
+        auto exUpdatedVar = parseWithKnownSymbs(updatedVar);
+        EXPECTS(is_a<symbol>(exUpdatedVar), "'variable' " + updatedVar + " is not a symbol");
+        
+        Dist res(*this);
+        res.registerAllUnknownSymbsAsVars(exUpdatedVar);
+        ex lhs = res.parseWithKnownSymbs(updatedVar);
+        ex sub1 = res.parseWithKnownSymbs(subFrom);
+        ex sub2 = res.parseWithKnownSymbs(sub);
+
+        ex result = res._gf;
         // we subtract a variable from another variable
-        if(isKnownAsVar(sub) && isKnownAsVar(subFrom)) {
-            if(this->isFiniteSupport() == troolean::TRUE) {
-                for(auto state: this->getTerms()) {
+        if(res.isKnownAsVar(sub) && res.isKnownAsVar(subFrom)) {
+            if(res.isFiniteSupport() == troolean::TRUE) {
+                for(auto state: res.getTerms()) {
+                    std::cout << state.toString() << std::endl;
                     EXPECTS(state.vals[subFrom] >= state.vals[sub], "result can be negative");
                 }
             }
@@ -626,142 +669,152 @@ namespace prodigy {
 
             if(sub2 == lhs) {
                 if(sub1 == lhs) {
-                    res = _gf.subs(lhs == 1);
+                    result = res._gf.subs(lhs == 1);
                 } else {
-                    res = _gf.subs(lhs == GiNaC::pow(lhs, -1)).subs(sub1 == sub1 * lhs);
+                    result = res._gf.subs(lhs == GiNaC::pow(lhs, -1)).subs(sub1 == sub1 * lhs);
                 }
             } else {
                 if(sub1 != lhs) {
-                    res = res.subs(lhs == 1).subs(sub1 == sub1 * lhs);
+                    result = result.subs(lhs == 1).subs(sub1 == sub1 * lhs);
                 }
-                res = res.subs(sub2 == sub2 * GiNaC::pow(lhs, -1));
+                result = result.subs(sub2 == sub2 * GiNaC::pow(lhs, -1));
             }
         }
         //we subtract a literal from a variable
-        else if(isKnownAsVar(subFrom)) {
-            EXPECTS(this->filterLess(subFrom, sub) == Dist("0"), "result can be negative");
+        else if(res.isKnownAsVar(subFrom)) {
+            EXPECTS(res.filterLess(subFrom, sub) == Dist("0"), "result can be negative");
             if(lhs != sub1) {
-                res = res.subs(lhs == 1).subs(sub1 == sub1 * lhs);
+                result = result.subs(lhs == 1).subs(sub1 == sub1 * lhs);
             }
-            res = res * GiNaC::pow(lhs, -sub2);
+            result = result * GiNaC::pow(lhs, -sub2);
         }
         // we subtract a variable from a literal
-        else if(isKnownAsVar(sub)) {
-            EXPECTS(this->filterGreater(sub, subFrom) == Dist("0"), "result can be negative");
+        else if(res.isKnownAsVar(sub)) {
+            EXPECTS(res.filterGreater(sub, subFrom) == Dist("0"), "result can be negative");
             if(sub2 == lhs) {
-                res = _gf.subs(lhs == GiNaC::pow(lhs, -1)) * GiNaC::pow(lhs, sub1);
+                result = res._gf.subs(lhs == GiNaC::pow(lhs, -1)) * GiNaC::pow(lhs, sub1);
             } else {
-                res = (_gf.subs(lhs == 1) * GiNaC::pow(lhs, sub1)).subs(sub2 == sub2 * GiNaC::pow(lhs, -1));
+                result = (res._gf.subs(lhs == 1) * GiNaC::pow(lhs, sub1)).subs(sub2 == sub2 * GiNaC::pow(lhs, -1));
             }
         }
         // we subtract two literals from each other
         else {
             EXPECTS(sub1 >= sub2, "result can be negative");
-            res = _gf.subs(lhs == 1) * GiNaC::pow(lhs, sub1 - sub2);
+            result = res._gf.subs(lhs == 1) * GiNaC::pow(lhs, sub1 - sub2);
         }
-
-        return Dist(res);
+        res._gf = result;
+        return res;
             
     }
 
     Dist Dist::updateModulo(const std::string &updatedVar, const std::string &left, const std::string &right, 
             const std::set<std::string> &variables, const std::optional<bool> &finite, const std::optional<std::string> &approx) const {
-        EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
-        EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
-        EXPECTS(!isKnownAsParam(left) && !isKnownAsParam(right), "cannot perform modulo of parameters");
-        registerAllUnknownSymbsAsVars(possymbol(updatedVar));
-        ex lhs = parseWithKnownSymbs(updatedVar);
+        EXPECTS(!isKnownAsParam(updatedVar), "'variable' " + updatedVar + " is known as a parameter");
+        EXPECTS(!isKnownAsParam(left) && !isKnownAsParam(right), "cannot perform modulo of parameters " + left + " " + right);
+        
+        auto exUpdatedVar = parseWithKnownSymbs(updatedVar);
+        EXPECTS(is_a<symbol>(exUpdatedVar), "'variable' " + updatedVar + " is not a symbol");
+        
+        Dist res(*this);
+        res.registerAllUnknownSymbsAsVars(exUpdatedVar);
+        ex lhs = res.parseWithKnownSymbs(updatedVar);
 
         // this is not the same as finite.value_or, which will always evaluate isFiniteSupport()
-        bool is_finite = finite.has_value() ? finite.value() : this->isFiniteSupport() == troolean::TRUE;
+        bool is_finite = finite.has_value() ? finite.value() : res.isFiniteSupport() == troolean::TRUE;
 
         // on finite distributions, iterate over all states
         if(is_finite) {
-            ex res = 0;
-            for(auto state : this->getTerms(variables)) {
+            ex result = 0;
+            for(auto state : res.getTerms(variables)) {
                 numeric leftVar, rightVar;
-                if(isKnownAsVar(left)) {
+                if(res.isKnownAsVar(left)) {
                     leftVar = state.vals.at(left);
                 } else {
-                    leftVar = ex_to<numeric>(parseWithKnownSymbs(left));
+                    leftVar = ex_to<numeric>(res.parseWithKnownSymbs(left));
                 }
-                if(isKnownAsVar(right)) {
+                if(res.isKnownAsVar(right)) {
                     rightVar = state.vals.at(right);
                 } else {
-                    rightVar = ex_to<numeric>(parseWithKnownSymbs(right));
+                    rightVar = ex_to<numeric>(res.parseWithKnownSymbs(right));
                 }
-                res += parseWithKnownSymbs(state.toString()).subs(lhs == 1) * GiNaC::pow(lhs, mod(leftVar, rightVar));
+                result += res.parseWithKnownSymbs(state.toString()).subs(lhs == 1) * GiNaC::pow(lhs, mod(leftVar, rightVar));
             }
             return Dist(res);
         }
         // if the distribution is infinite and right is a variable, it needs to have finite range
-        else if(isKnownAsVar(right)) {
-            auto marginal_r = this->marginal(right);
+        else if(res.isKnownAsVar(right)) {
+            auto marginal_r = res.marginal(right);
             if(marginal_r.isPolynomial({right}) == troolean::FALSE) {
                 if(!approx.has_value()) {
                     throw std::invalid_argument("rhs needs to have a finite marginal");
                 }
                 marginal_r = marginal_r.approximateUnilaterally(right, approx.value());
             }
-            ex res = 0;
+            ex result = 0;
             for(auto state : marginal_r.getTerms({right})) {
                 auto right_val = std::to_string(state.vals.at(right));
-                res += this->filterEq(right, right_val)
+                result += res.filterEq(right, right_val)
                     .updateModulo(updatedVar, left, right_val, variables, is_finite ? true : std::optional<bool>(), approx)._gf;
             }
-            return Dist(res);
+            res._gf = result;
+            return res;
         }
         // if left is a variable, it doesn't have to have finite range
-        else if(isKnownAsVar(left)) {
-            auto marginal_l = this->marginal(left);
-            ex res = 0;
+        else if(res.isKnownAsVar(left)) {
+            auto marginal_l = res.marginal(left);
+            ex result = 0;
             if(marginal_l.isPolynomial({left}) == troolean::TRUE) {
                 for(auto state : marginal_l.getTerms({left})) {
                     auto left_val = std::to_string(state.vals.at(left));
-                    res += this->filterEq(left, left_val)
+                    result += res.filterEq(left, left_val)
                         .updateModulo(updatedVar, left_val, right, variables, is_finite ? true : std::optional<bool>(), approx)._gf;
                 }
             } else {
-                auto prog = this->arithmeticProgression(left, right);
+                auto prog = res.arithmeticProgression(left, right);
                 for(int i = 0; i < prog.size(); i++) {
-                    res += prog.at(i)._gf.subs(lhs == 1) * GiNaC::pow(lhs, i);
+                    result += prog.at(i)._gf.subs(lhs == 1) * GiNaC::pow(lhs, i);
                 }
             }
-            return Dist(res);
+            res._gf = result;
+            return res;
         }
         // if both are not variables, simply compute the result
         else {
             numeric mod1 = ex_to<numeric>(parseWithKnownSymbs(left));
             numeric mod2 = ex_to<numeric>(parseWithKnownSymbs(right));
-            return this->updateVar(updatedVar, std::to_string(GiNaC::to_int(mod(mod1, mod2))));
+            return res.updateVar(updatedVar, std::to_string(GiNaC::to_int(mod(mod1, mod2))));
         }
     }
 
     Dist Dist::updateDivision(const std::string &updatedVar, const std::string &numerator, const std::string &denominator, const std::optional<std::string> &approx) const {
-        EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
-        EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
-        EXPECTS(!isKnownAsParam(numerator) && !isKnownAsParam(denominator), "cannot perform division of parameters");
-        registerAllUnknownSymbsAsVars(possymbol(updatedVar));
-        ex lhs = parseWithKnownSymbs(updatedVar);
-        ex div1 = parseWithKnownSymbs(numerator);
-        ex div2 = parseWithKnownSymbs(denominator);
+        EXPECTS(!isKnownAsParam(updatedVar), "'variable' " + updatedVar + " is known as a parameter");
+        EXPECTS(!isKnownAsParam(numerator) && !isKnownAsParam(denominator), "cannot perform division of parameters " + numerator + " " + denominator);
+        auto exUpdatedVar = parseWithKnownSymbs(updatedVar);
+        EXPECTS(is_a<symbol>(exUpdatedVar), "'variable'" + updatedVar + " is not a symbol");
+        
+        Dist result(*this);
+        result.registerAllUnknownSymbsAsVars(exUpdatedVar);
+        ex lhs = result.parseWithKnownSymbs(updatedVar);
+        ex div1 = result.parseWithKnownSymbs(numerator);
+        ex div2 = result.parseWithKnownSymbs(denominator);
 
         ex res;
 
-        if(isKnownAsVar(numerator) && is_a<numeric>(div2)) {
-            if(assumptionsHold({std::make_shared<Divisible>(numerator, ex_to<numeric>(div2).to_int())})){
+        if(result.isKnownAsVar(numerator) && is_a<numeric>(div2)) {
+            if(result.assumptionsHold({std::make_shared<Divisible>(numerator, ex_to<numeric>(div2).to_int())})){
                 if(lhs == div1) {
-                    res = _gf.subs(div1 == pow(div1, 1/div2));
+                    res = result._gf.subs(div1 == pow(div1, 1/div2));
                 } else {
-                    res = _gf.subs(lhs == 1).subs(div1 == div1*pow(lhs, 1/div2));
+                    res = result._gf.subs(lhs == 1).subs(div1 == div1*pow(lhs, 1/div2));
                 }
-                return Dist(res);
+                result._gf = res;
+                return result;
             }
         }
 
         Dist marginal_l, marginal_r;
-        if(isKnownAsVar(numerator)) {
-            marginal_l = this->marginal(numerator);
+        if(result.isKnownAsVar(numerator)) {
+            marginal_l = result.marginal(numerator);
             if(marginal_l.isPolynomial({numerator}) == troolean::FALSE) {
                 if(!approx.has_value()) {
                     throw std::invalid_argument("numerator must have a finite marginal");
@@ -771,8 +824,8 @@ namespace prodigy {
         } else {
             marginal_l = Dist(div1);
         }
-        if(isKnownAsVar(denominator)) {
-            marginal_r = this->marginal(denominator);
+        if(result.isKnownAsVar(denominator)) {
+            marginal_r = result.marginal(denominator);
             if(marginal_r.isPolynomial({denominator}) == troolean::FALSE) {
                 if(!approx.has_value()) {
                     throw std::invalid_argument("denominator must have a finite marginal");
@@ -783,55 +836,58 @@ namespace prodigy {
             marginal_r = Dist(div2);
         }
 
-        if(isKnownAsVar(numerator)) {
+        if(result.isKnownAsVar(numerator)) {
             for(auto state_l : marginal_l.getTerms({numerator})) {
-                if(isKnownAsVar(denominator)) {
+                if(result.isKnownAsVar(denominator)) {
                     for(auto state_r : marginal_r.getTerms({denominator})) {
                         int val_l = state_l.vals.at(numerator);
                         int val_r = state_r.vals.at(denominator);
-                        ex x = this->filterEq(numerator, std::to_string(val_l))
+                        ex x = result.filterEq(numerator, std::to_string(val_l))
                             .filterEq(denominator, std::to_string(val_r))._gf;
                         EXPECTS(mod(val_l, val_r) == 0 || x == 0, "numerator is not always divisible by denominator");
                         res += x.subs(lhs == 1) * GiNaC::pow(lhs, val_l / val_r);
                     }
                 } else {
                     int val_l = state_l.vals.at(numerator);
-                    ex x = this->filterEq(numerator, std::to_string(val_l))._gf;
+                    ex x = result.filterEq(numerator, std::to_string(val_l))._gf;
                     EXPECTS(mod(val_l, ex_to<numeric>(div2)) == 0 || x == 0, "numerator is not always divisible by denominator");
                     res += x.subs(lhs == 1) * GiNaC::pow(lhs, val_l / div2);
                 }
             }
         } else {
-            if(isKnownAsVar(denominator)) {
+            if(result.isKnownAsVar(denominator)) {
                 for(auto state_r : marginal_r.getTerms({denominator})) {
                     int val_r = state_r.vals.at(denominator);
-                    ex x = this->filterEq(denominator, std::to_string(val_r))._gf;
+                    ex x = result.filterEq(denominator, std::to_string(val_r))._gf;
                     EXPECTS(mod(ex_to<numeric>(div1), val_r) == 0 || x == 0, "numerator is not always divisible by denominator");
                     res += x.subs(lhs == 1) * GiNaC::pow(lhs, div1 / val_r);
                 } 
             } else {
                 EXPECTS(mod(ex_to<numeric>(div1), ex_to<numeric>(div2)) == 0, "numerator is not always divisible by denominator");
-                res = _gf.subs(lhs == 1) * GiNaC::pow(lhs, div1 / div2);
+                res = result._gf.subs(lhs == 1) * GiNaC::pow(lhs, div1 / div2);
             }
         }
-
-        return Dist(res);
+        result._gf = res;
+        return result;
     }
 
     Dist Dist::updatePower(const std::string &updatedVar, const std::string &base, const std::string &exp, const std::optional<std::string> &approx) const {
-        EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
-        EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
-        EXPECTS(!isKnownAsParam(base) && !isKnownAsParam(exp), "cannot perform exponentiation of parameters");
-        registerAllUnknownSymbsAsVars(possymbol(updatedVar));
-        ex lhs = parseWithKnownSymbs(updatedVar);
-        ex pow1 = parseWithKnownSymbs(base);
-        ex pow2 = parseWithKnownSymbs(exp);
-        ex res = this->_gf;
+        EXPECTS(!isKnownAsParam(updatedVar), "'variable' " + updatedVar + " is known as a parameter");
+        EXPECTS(!isKnownAsParam(base) && !isKnownAsParam(exp), "cannot perform exponentiation of parameters " + base + " " + exp);
+        auto exUpdatedVar = parseWithKnownSymbs(updatedVar);
+        EXPECTS(is_a<symbol>(exUpdatedVar), "'variable' " + updatedVar + " is not a symbol");
+        
+        Dist result(*this);
+        result.registerAllUnknownSymbsAsVars(exUpdatedVar);
+        ex lhs = result.parseWithKnownSymbs(updatedVar);
+        ex pow1 = result.parseWithKnownSymbs(base);
+        ex pow2 = result.parseWithKnownSymbs(exp);
+        ex res = result._gf;
 
         // variable to the power of a variable
-        if(isKnownAsVar(base) && isKnownAsVar(exp)) {
-            auto marginal_l = this->marginal(base);
-            auto marginal_r = this->marginal(exp);
+        if(result.isKnownAsVar(base) && result.isKnownAsVar(exp)) {
+            auto marginal_l = result.marginal(base);
+            auto marginal_r = result.marginal(exp);
             if(marginal_l.isPolynomial({base}) == troolean::FALSE) {
                 if(!approx.has_value()) {
                     throw std::invalid_argument("base does not have a finite marginal");
@@ -849,34 +905,34 @@ namespace prodigy {
                 for(auto state_r : marginal_r.getTerms({exp})) {
                     int b = state_l.vals.at(base);
                     int e = state_r.vals.at(exp);
-                    ex x = this->filterEq(base, std::to_string(b)).filterEq(exp, std::to_string(e))._gf;
+                    ex x = result.filterEq(base, std::to_string(b)).filterEq(exp, std::to_string(e))._gf;
                     res -= x;
                     res += x.subs(lhs == 1) * GiNaC::pow(lhs, GiNaC::pow(b, e));
                 }
             }
         }
         // variable to the power of a literal
-        else if(isKnownAsVar(base)) {
-            auto marginal = this->marginal(base);
+        else if(result.isKnownAsVar(base)) {
+            auto marginal = result.marginal(base);
             EXPECTS(marginal.isPolynomial({base}) == troolean::TRUE, 
                     "Can only perform exponentiation if the base has a finite marginal");
 
             for(auto state : marginal.getTerms({base})) {
                 int b = state.vals.at(base);
-                ex x = this->filterEq(base, std::to_string(b))._gf;
+                ex x = result.filterEq(base, std::to_string(b))._gf;
                 res -= x;
                 res += x.subs(lhs == 1) * GiNaC::pow(lhs, GiNaC::pow(b, pow2));
             }
         }
         // literal to the power of a variable
-        else if(isKnownAsVar(exp)) {
-            auto marginal = this->marginal(exp);
+        else if(result.isKnownAsVar(exp)) {
+            auto marginal = result.marginal(exp);
             EXPECTS(marginal.isPolynomial({exp}) == troolean::TRUE, 
                     "Can only perform exponentiation if the base has a finite marginal");
 
             for(auto state : marginal.getTerms({exp})) {
                 int e = state.vals.at(exp);
-                ex x = this->filterEq(exp, std::to_string(e))._gf;
+                ex x = result.filterEq(exp, std::to_string(e))._gf;
                 res -= x;
                 res += x.subs(lhs == 1) * GiNaC::pow(lhs, GiNaC::pow(pow1, e));
             }
@@ -885,36 +941,37 @@ namespace prodigy {
         else {
             res = res.subs(lhs == 1) * GiNaC::pow(lhs, GiNaC::pow(pow1, pow2));
         }
-
-        return Dist(res);
+        result._gf = res;
+        return result;
     }
 
     Dist Dist::updateRoot(const std::string &updatedVar, const std::string &radicand, const std::string &index, const std::optional<std::string> &approx) const {
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
         EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
         EXPECTS(!isKnownAsParam(radicand) && !isKnownAsParam(index), "cannot perform exponentiation of parameters");
-        registerAllUnknownSymbsAsVars(possymbol(updatedVar));
-        ex lhs = parseWithKnownSymbs(updatedVar);
-        ex number = parseWithKnownSymbs(radicand);
-        ex root = parseWithKnownSymbs(index);
+        Dist result(*this);
+        result.registerAllUnknownSymbsAsVars(possymbol(updatedVar));
+        ex lhs = result.parseWithKnownSymbs(updatedVar);
+        ex number = result.parseWithKnownSymbs(radicand);
+        ex root = result.parseWithKnownSymbs(index);
         ex res;
 
-        if(isKnownAsVar(radicand) || isKnownAsVar(index)) {
+        if(result.isKnownAsVar(radicand) || result.isKnownAsVar(index)) {
             std::vector<std::string> variables(2);
-            if(isKnownAsVar(radicand))
+            if(result.isKnownAsVar(radicand))
                 variables.push_back(radicand);
             else
                 EXPECTS(is_a<numeric>(number), "radicand is neither a known symbol nor a numeric");
-            if(isKnownAsVar(index))
+            if(result.isKnownAsVar(index))
                 variables.push_back(index);
             else
                 EXPECTS(is_a<numeric>(root), "index is neither a known symbol nor a numeric");
-            auto marginal = this->marginal(variables);
-            if(isKnownAsVar(radicand) && marginal.isPolynomial({radicand}) != troolean::TRUE) {
+            auto marginal = result.marginal(variables);
+            if(result.isKnownAsVar(radicand) && marginal.isPolynomial({radicand}) != troolean::TRUE) {
                 EXPECTS(approx.has_value(), "radicand has infinite range");
                 marginal = marginal.approximateUnilaterally(radicand, approx.value());
             }
-            if(isKnownAsVar(index) && marginal.isPolynomial({index}) != troolean::TRUE) {
+            if(result.isKnownAsVar(index) && marginal.isPolynomial({index}) != troolean::TRUE) {
                 EXPECTS(approx.has_value(), "index has infinite range");
                 marginal = marginal.approximateUnilaterally(index, approx.value());
             }
@@ -922,14 +979,14 @@ namespace prodigy {
             for(auto state: marginal.getTerms()) {
                 auto filtered = *this;
                 int a, b;
-                if(isKnownAsVar(radicand)) {
+                if(result.isKnownAsVar(radicand)) {
                     std::stringstream s;
                     s << state.vals[radicand];
                     filtered = filtered.filterEq(radicand, s.str());
                     a = state.vals[radicand];
                 } else
                     a = ex_to<numeric>(number).to_int();
-                if(isKnownAsVar(index)) {
+                if(result.isKnownAsVar(index)) {
                     std::stringstream s;
                     s << state.vals[index];
                     filtered = filtered.filterEq(index, s.str());
@@ -941,17 +998,17 @@ namespace prodigy {
         }
         else {
             EXPECTS(is_a<numeric>(number) && is_a<numeric>(root), "radicand or index is neither a known symbol nor a numeric");
-            res = _gf.subs(lhs == 1) * pow(lhs, nthRoot(ex_to<numeric>(number).to_int(), ex_to<numeric>(root).to_int()));
+            res = result._gf.subs(lhs == 1) * pow(lhs, nthRoot(ex_to<numeric>(number).to_int(), ex_to<numeric>(root).to_int()));
         }
-
-        return Dist(res);
+        result._gf = res;
+        return result;
     }
 
     Dist Dist::approximateUnilaterally(const std::string &variable, const std::string &prob_mass) const {
         ex mass = parseWithKnownSymbs(prob_mass).evalf();
         EXPECTS(is_a<numeric>(mass), "given probability mass is not a number");
         if(mass == 0) {
-            return Dist("0");
+            return Dist(*this) * "0";
         }
         EXPECTS(mass < this->mass(), "given probability mass is too large");
         EXPECTS(mass > 0, "given probability mass must be non-negative");
@@ -966,62 +1023,61 @@ namespace prodigy {
             res += next._gf;
             mass_res += next.mass();
         }
-        return Dist(res);
+        Dist result(*this);
+        result._gf = res;
+        return result;
     }
 
     Dist Dist::updateIid(const std::string &x, const Dist &d, const std::string &y) const {
+        // models assignments like x := iid(d, y).
         EXPECTS(!isKnownAsParam(x) && !isKnownAsParam(y), "given symbol is considered a parameter, not a variable");
         EXPECTS(d.mass() == 1, "the distribution wrapped into iid must not be a sub distribution");
         EXPECTS(d.isUnivariate() == troolean::TRUE, "the distribution wrapped into iid must be univariate");
-        if (!isKnownAsVar(y)) {
-            // then this is like x = iid(y, 0) so x simply becomes 0
-            registerAsVar(possymbol(y)); // consider z variable from now on
-            return updateVar(x, "0");
-        }
-        if (!isKnownAsVar(x)) {
-            registerAsVar(possymbol(x));
-        }
-        // first marginalize x away in *this
-        ex res = _gf.normal();
+        auto exX = parseWithKnownSymbs(x);
+        EXPECTS(is_a<symbol>(exX), "Cannot assign a value to " + x);
+
+        Dist result(*this);
+        result.registerAsVar(ex_to<symbol>(exX));
+        auto exY = parseWithKnownSymbs(y);
+        auto substitute = d._gf;
+
+        // make temp variable to actual x variable:
+        for(auto sym : d._vars)
+                substitute = substitute.subs(sym.second == exX);
+
+        // project x away if x is not y
         if (x != y) {
-            res = res.subs(_vars[x] == 1);
+            result._gf = result._gf.normal();
+            result._gf = result._gf.subs(result._vars[x] == 1);
         }
-        // ySubs will be gf of y with (single) var replaced by x
-        // do this by simply substituting all known vars for x
-        // currently, gathering the symbols that actually occur in y is not implemented
-        ex ySubs = d._gf;
-        for (const auto &v : _vars) {
-            ySubs = ySubs.subs(v.second == _vars[x]);
-        }
-        // do the actual substitution
-        if (x != y) {
-            res = res.subs(_vars[y] == _vars[y] * ySubs);
-        } else {
-            res = res.subs(_vars[y] == ySubs);
-        }
-        return Dist{res};
+        if(is_a<symbol>(exY)) result._gf = result._gf.subs(exY == substitute * exY);
+        else if(exY.info(info_flags::nonnegint)) result._gf = result._gf.subs(exX == substitute);
+        else std::cout << "This should not happen in iid statement" <<std::endl;
+        
+        return result;
     }
 
     Dist Dist::filterLess(const std::string &x, const std::string &e) const {
-        EXPECTS(!isKnownAsParam(x), "given symbol is a parameter");
-        parser parse;
-        ex eExp = parse(e);
+        EXPECTS(!isKnownAsParam(x), "given symbol " + x + " is a parameter");
+        ex eExp = parseWithKnownSymbs(e);
         EXPECTS(eExp.info(info_flags::nonnegint), "given expression must be non-neg int");
+
         int order = ex_to<numeric>(eExp).to_int();
         if(order == 0) {
             // nothing can be less than 0
             return Dist("0");
         }
-        ex xExp;
+        Dist result(*this);
+        ex xExp = parseWithKnownSymbs(x);
         // todo why not use parseWithKnownSymbols?
-        if(!isKnownAsVar(x)) {
-            xExp = possymbol {x};
-            Dist::registerAsVar(ex_to<possymbol>(xExp));
+        if(!result.isKnownAsVar(x)) {
+            result.registerAsVar(ex_to<symbol>(xExp));
         } else {
-            xExp = _vars.at(x);
+            xExp = result._vars.at(x);
         }
-        ex series = _gf.series(xExp, order);
-        return Dist{series_to_poly(series)};
+        ex series = result._gf.series(xExp, order);
+        result._gf = series_to_poly(series);
+        return result;
     }
 
     Dist Dist::CoefficientIterator::next() {
@@ -1029,25 +1085,30 @@ namespace prodigy {
         _n++;
         _rest = (_rest - nextTerm).normal();
         ex nextCoeff = nextTerm.subs(_var == 1);
-        return Dist(nextCoeff);
+        Dist result;
+        result._gf = nextCoeff;
+        result._vars = _vars;
+        result._params = _params;
+        return result;
     }
 
     Dist::CoefficientIterator Dist::coefficientIterator(const std::string &var) const {
-        EXPECTS(isKnownAsVar(var), "can only expand series in known variables");
-        return CoefficientIterator(*this, ex_to<possymbol>(_vars.at(var)));
+        EXPECTS(isKnownAsVar(var), "can only expand series in known variables -- not in " + var);
+        return CoefficientIterator(*this, ex_to<symbol>(_vars.at(var)));
     }
 
     Dist Dist::substituteParam(const std::string &p, const std::string &val) const {
-        EXPECTS(!isKnownAsVar(p), "given symbol is considered a variable");
+        EXPECTS(!isKnownAsVar(p), "symbol " + p + " is considered a variable");
         if (!isKnownAsParam(p)) {
             return *this;
         }
-        ex pSym = _params[p];
-        ex parsed = Dist::parseWithKnownSymbs(val);
-        Dist::registerAllUnknownSymbsAsParams(parsed);
+        Dist result(*this);
+        ex pSym = result._params[p];
+        ex parsed = result.parseWithKnownSymbs(val);
+        result.registerAllUnknownSymbsAsParams(parsed);
         // todo error if parsed contains known variables
-        ex res = _gf.subs(pSym == parsed);
-        return Dist{res};
+        result._gf = result._gf.subs(pSym == parsed);
+        return result;
     }
 
 
@@ -1064,12 +1125,15 @@ namespace prodigy {
     }
 
     Dist operator*(const Dist &lhs, const std::string &rhs) {
-        ex parsed = Dist::parseWithKnownSymbs(rhs); // might throw parser error
+        Dist result(lhs);
+        auto ex_rhs = result.parseWithKnownSymbs(rhs);
+
+        result.registerAllUnknownSymbsAsParams(ex_rhs);
         // todo error if parsed contained known variables
         // parsed contains just unknown symbs and known params
         // no error from now on
-        Dist::registerAllUnknownSymbsAsParams(parsed);
-        return Dist{parsed * lhs._gf};
+        result._gf *= ex_rhs;
+        return result;
     }
 
 } // namespace prodigy

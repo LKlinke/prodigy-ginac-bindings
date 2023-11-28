@@ -64,7 +64,6 @@ TEST(EquivalenceCheck, geometric) {
 }
 
 TEST(EquivalenceCheck, geometricSum) {
-    Dist::resetSymbolCache();
     Dist l0, l1, l2, l3, l4, l5, l6, l7, l8;
 
     /*
@@ -122,7 +121,6 @@ TEST(EquivalenceCheck, geometricSum) {
 }
 
 TEST(EquivalenceCheck, randomWalk) {
-    Dist::resetSymbolCache();
     Dist l0, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12, l13, l14, l15, l16;
 
     /*
@@ -192,7 +190,6 @@ TEST(EquivalenceCheck, randomWalk) {
 }
 
 TEST(EquivalenceCheck, trivialIID){
-    Dist::resetSymbolCache();
     Dist l0, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12;
     /*
     * given loop
@@ -272,7 +269,6 @@ TEST(EquivalenceCheck, trivialIID){
 }
 
 TEST(EquivalenceCheck, dep_bern){
-    Dist::resetSymbolCache();
     Dist l0, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12;
     
     /*

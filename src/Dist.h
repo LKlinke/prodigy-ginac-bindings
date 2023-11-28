@@ -46,79 +46,16 @@ namespace prodigy {
         ex _gf;
 
         std::vector<std::shared_ptr<Assumption>> assumptions;
-
-        /* static (global) part of class Dist */
-
-        // global invariant:
-        // _params and _vars are disjoint, they map a string "s" to a symbol symb with symb.get_name() = "s"
-        static str2sym _params;
-        static str2sym _vars;
+        
+        str2sym _params;
+        str2sym _vars;
 
     public:
 
-        static void printKnownVars() {
-            std::for_each(_vars.begin(), _vars.end(), [](const auto& entry) {std::cout << entry.first << " ";} );
-            std::cout << std::endl;
-        }
-
-        static void printKnownParams() {
-            std::for_each(_params.begin(), _params.end(), [](const auto& entry) {std::cout << entry.first << " ";} );
-            std::cout << std::endl;
-        }
-
-        static void resetSymbolCache() {
-            _params.clear();
-            _vars.clear();
-        }
-
-    private:
-
-        static str2sym paramsAndVars();
-
-    public:
-
-        static bool isSymbKnown(const std::string& s);
-        static bool isKnownAsVar(const std::string& s);
-        static bool isKnownAsParam(const std::string& s);
-
-        /**
-         * returns a symbol name that is registered as neither a parameter nor a variable
-         * also registers the symbol as a variable
-         */
-        static std::string getFreshVariable();
-
-        /**
-         * evaluates the expression in a given state
-         * does not read from or write to the symbol table, the only requirement is that valuations to all symbols in the expression are given
-        */
-        static int evaluate(const std::string &expr, const std::map<std::string, int> &valuations);
+        /* static parts */
 
         static std::vector<std::string> find_symbols(const std::string &exp);
-
-        static uint64_t nthRoot(const uint64_t number, const uint64_t root);
-
-    private:
-
-        static bool isSymbKnown(const possymbol& s);
-        static bool isKnownAsVar(const possymbol& s);
-        static bool isKnownAsParam(const possymbol& s);
-
-        /*
-         * attempts to convert the given string to an expression
-         * links all syntactic symbol names (e.g. "x") to the symbol objects registered in the tables _vars and _params
-         * new symbols are created for unknown names, but they are not registered
-         */
-        static ex parseWithKnownSymbs(const std::string& s);
-
-        static void registerAllUnknownSymbsAsVars(const ex& e);
-        static void registerAllUnknownSymbsAsParams(const ex& e);
-        static void registerAsVar(const possymbol& p);
-        static void registerAsParam(const possymbol& p);
-        static void deregister(const std::string& s);
-
-
-    public:
-
+        
         /* constructors */
 
         Dist() = default;
@@ -135,18 +72,89 @@ namespace prodigy {
          * all other symbols in 'gfStr' are registered as variables
          */
         Dist(const std::string& gfStr, const std::vector<std::string>& paramsStr);
-        Dist(const std::string& gfStr, std::initializer_list<std::string> paramsStr) : Dist(gfStr, std::vector<std::string>{paramsStr}) { }
+        Dist(const std::string& gfStr, std::initializer_list<std::string> paramsStr)
+            : Dist(gfStr, std::vector<std::string>{paramsStr}) {}
 
         /*
          * constructs a distribution with gf 'gfStr' containing a symbol 'pStr'
          * the symbol 'pStr' is registered as a parameter
          * all other symbols in 'gfStr' are registered as variables
          */
-        Dist(const std::string& gfStr, const std::string& pStr) : Dist(gfStr, std::vector<std::string>{pStr}) { }
+        Dist(const std::string& gfStr, const std::string& pStr)
+            : Dist(gfStr, std::vector<std::string>{pStr}) {}
+        
+
+        void printKnownVars() const {
+            std::for_each(_vars.begin(), _vars.end(), [](const auto& entry) {std::cout << entry.first << " ";} );
+            std::cout << std::endl;
+        }
+
+        void printKnownParams() const {
+            std::for_each(_params.begin(), _params.end(),[](const auto& entry) {std::cout <<  entry.first << " ";} );
+            std::cout << std::endl;
+        }
+
+        void resetSymbolCache() {
+            _params.clear();
+            _vars.clear();
+        }
+        
+        const bool isSymbKnown(const std::string& s) const;
+        const bool isKnownAsVar(const std::string& s) const;
+        const bool isKnownAsParam(const std::string& s) const;
+        
+        /**
+         * returns a symbol name that is registered as neither a parameter nor a variable
+         * also registers the symbol as a variable
+         */
+        std::string getFreshVariable();
+        
+        /**
+         * evaluates the expression in a given state
+         * does not read from or write to the symbol table, the only requirement is that valuations to all symbols in the expression are given
+        */
+        int evaluate(const std::string &expr, const std::map<std::string, int> &valuations);
 
 
+
+        static uint64_t nthRoot(const uint64_t number, const uint64_t root);
+        
+        typedef struct State {
+            ex prob;
+            std::map<std::string, int> vals;
+
+            std::string toString() const {
+                std::stringstream res;
+                res << prob;
+                for(auto item : vals) {
+                    res << '*' << item.first << '^' << item.second;
+                }
+                return res.str();
+            }
+        } State;
 
     private:
+
+        str2sym paramsAndVars() const;
+        std::vector<State> getTerms(const GiNaC::lst& vars) const;
+
+        const bool isSymbKnown(const symbol& s) const;
+        const bool isKnownAsVar(const symbol& s) const;
+        const bool isKnownAsParam(const symbol& s) const;
+
+        /*
+         * attempts to convert the given string to an expression
+         * links all syntactic symbol names (e.g. "x") to the symbol objects registered in the tables _vars and _params
+         * new symbols are created for unknown names, but they are not registered
+         */
+        ex parseWithKnownSymbs(const std::string& s) const;
+
+        void registerAllUnknownSymbsAsVars(const ex& e);
+        void registerAllUnknownSymbsAsParams(const ex& e);
+        void registerAsVar(const symbol& p);
+        void registerAsParam(const symbol& p);
+        void deregister(const std::string& s);
+
         explicit Dist(ex gf) : _gf(std::move(gf)) { assumptions = {}; }
 
     public:
@@ -233,19 +241,6 @@ namespace prodigy {
          */
         troolean isPolynomial(const std::set<std::string>& vars) const;
 
-        typedef struct State {
-            ex prob;
-            std::map<std::string, int> vals;
-
-            std::string toString() const {
-                std::stringstream res;
-                res << prob;
-                for(auto item : vals) {
-                    res << '*' << item.first << '^' << item.second;
-                }
-                return res.str();
-            }
-        } State;
         /**
          * returns a list of all terms if *this is a polynomial in the provided variables
          */
@@ -265,7 +260,7 @@ namespace prodigy {
         /**
          * returns all symbols that occur in this distribution (variables and parameters)
          */
-        std::vector<possymbol> getSymbols() const;
+        std::vector<symbol> getSymbols() const;
 
         /**
          * performs the update updatedVar := assignVar
@@ -316,10 +311,31 @@ namespace prodigy {
          * approximates the distribution in one variable via its series expansion
         */
         Dist approximateUnilaterally(const std::string &variable, const std::string &prob_mass) const;
-    private:
-        std::vector<State> getTerms(const GiNaC::lst& vars) const;
-    public:
 
+    public:
+        
+        
+        /**
+         * this iterator regards a k-dimensional distribution as 1-dimensional in the given variable with coefficients
+         * that are k-1 dimensional, and it iterates of these coefficients
+         *
+         * in other words, the iterator ranges over the coefficients in the series expansion wrt. the given of the gf
+         * underlying the given distribution
+         */
+        class CoefficientIterator {
+        private:
+            str2sym _params;
+            str2sym _vars;
+            ex _rest;
+            symbol _var;
+            int _n;
+        public:
+            CoefficientIterator(Dist dist, symbol var) : _params(std::move(dist._params)), _vars(std::move(dist._vars)), _rest(std::move(dist._gf)), _var(std::move(var)), _n(1) {}
+            Dist next();
+            Dist rest() const { return Dist(_rest); }
+        };
+        
+        
         /*
          * update distribution according to assignment x := iid(D,y) where x and y are variables
          * D is a univariate proper distribution (no sub distribution)
@@ -342,24 +358,6 @@ namespace prodigy {
         Dist filterGeq(const std::string& x, const std::string& e) const { return *this - filterLess(x, e); }
         Dist filterEq(const std::string& x, const std::string& e) const { return *this - filterLess(x, e) - filterGreater(x, e); }
         Dist filterNeq(const std::string& x, const std::string& e) const { return *this - filterEq(x, e); }
-
-        /*
-         * this iterator regards a k-dimensional distribution as 1-dimensional in the given variable with coefficients
-         * that are k-1 dimensional, and it iterates of these coefficients
-         *
-         * in other words, the iterator ranges over the coefficients in the series expansion wrt. the given of the gf
-         * underlying the given distribution
-         */
-        class CoefficientIterator {
-        private:
-            ex _rest;
-            possymbol _var;
-            int _n;
-        public:
-            CoefficientIterator(Dist dist, possymbol var) : _rest(std::move(dist._gf)), _var(std::move(var)), _n(1) {}
-            Dist next();
-            Dist rest() const { return Dist(_rest); }
-        };
 
         /*
          * returns a coefficient iterator for the dimension specified by var
@@ -389,13 +387,76 @@ namespace prodigy {
         /*
          * convolution
          */
-        friend Dist operator*(const Dist& lhs, const Dist& rhs) { return Dist {lhs._gf * rhs._gf}; }
+        friend Dist operator*(const Dist& lhs, const Dist& rhs) {
+            Dist result(lhs);
+            for (const auto& var : rhs._vars){
+                EXPECTS(!result.isKnownAsParam(var.first), "variable " + var.first + " is known as parameter.");
+                if(!result.isKnownAsVar(var.first)){
+                    result.registerAsVar(ex_to<symbol>(var.second));
+                }
+            }
+            for (const auto& param: rhs._params){
+                EXPECTS(!result.isKnownAsVar(param.first), "parameter " + param.first + " is known as variable.");
+                if(!result.isKnownAsParam(param.first)){
+                    result.registerAsParam(ex_to<symbol>(param.second));
+                }
+            }
+
+            auto rhs_symbs = rhs.getSymbols();
+            auto rhs_gf = rhs._gf;
+
+            for (auto sym : rhs_symbs){
+                if(result.isKnownAsVar(sym.get_name())){
+                    rhs_gf = rhs_gf.subs(sym == result._vars[sym.get_name()]);
+                } else if (result.isKnownAsParam(sym.get_name())){
+                    rhs_gf = rhs_gf.subs(sym == result._params[sym.get_name()]);
+                }
+                else{
+                    std::cout << "this should actually not happen!" << std::endl;
+                }
+            }
+
+            result._gf *= rhs_gf;
+            return result; 
+        }
 
         /*
          * point-wise sum/difference
          */
-        friend Dist operator+(const Dist& lhs, const Dist& rhs) { return Dist {lhs._gf + rhs._gf}; }
-        friend Dist operator-(const Dist& lhs, const Dist& rhs) { return lhs + ("-1" * rhs); }
+        friend Dist operator+(const Dist& lhs, const Dist& rhs) {
+            Dist result(lhs);
+            for (const auto& var : rhs._vars){
+                EXPECTS(!result.isKnownAsParam(var.first), "variable is known as parameter.");
+                if(!result.isKnownAsVar(var.first)){
+                    result.registerAsVar(ex_to<symbol>(var.second));
+                }
+            }
+            for (const auto& param: rhs._params){
+                EXPECTS(!result.isKnownAsVar(param.first), "parameter is known as variable.");
+                if(!result.isKnownAsParam(param.first)){
+                    result.registerAsParam(ex_to<symbol>(param.second));
+                }
+            }
+
+            auto rhs_symbs = rhs.getSymbols();
+            auto rhs_gf = rhs._gf;
+
+            for (auto sym : rhs_symbs){
+                if(result.isKnownAsVar(sym.get_name())){
+                    rhs_gf = rhs_gf.subs(sym == result._vars[sym.get_name()]);
+                } else if (result.isKnownAsParam(sym.get_name())){
+                    rhs_gf = rhs_gf.subs(sym == result._params[sym.get_name()]);
+                }
+                else{
+                    std::cout << "this should actually not happen!" << std::endl;
+                }
+            }
+
+            result._gf += rhs_gf;
+            return result; 
+        }
+
+        friend Dist operator-(const Dist& lhs, const Dist& rhs) { return lhs + ("(-1)" * rhs); }
 
     };
 
