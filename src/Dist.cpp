@@ -483,7 +483,11 @@ namespace prodigy {
         Dist result = Dist(*this);
         
         ex rhs = parseWithKnownSymbs(assignVar);
+        if(!result.isKnownAsVar(ex_to<symbol>(rhs)))
+            result.registerAsVar(ex_to<symbol>(rhs));
         ex lhs = parseWithKnownSymbs(updatedVar);
+        if(!result.isKnownAsVar(ex_to<symbol>(lhs)))
+            result.registerAsVar(ex_to<symbol>(lhs));
         if(is_a<symbol>(rhs)) {
             EXPECTS(isKnownAsVar(assignVar), "cannot substitute " + updatedVar + " := " + assignVar + " -- " + assignVar + " is unknown.");
             result._gf = result._gf.subs(lhs==1).subs(rhs == rhs * lhs);
