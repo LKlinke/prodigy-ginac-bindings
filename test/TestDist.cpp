@@ -54,6 +54,11 @@ TEST(Dist, updateMonus) {
     //ASSERT_EQ(dist.updateSubtraction("x", "x", "1"), Dist {"1/2 + 1/2 * x"});
 }
 
+TEST(Dist, equality) {
+    Dist dist {"(x^2)^(9/2)"}, dist2 {"x^9"};
+    ASSERT_EQ(dist, dist2);
+}
+
 TEST(Dist, iid) {
     Dist  dist = Dist {"1/2*x + 1/2*x^2"} * Dist {"y^2"};
     dist = dist.updateIid("res", Fac::geometric("T","1/3"), "y");
