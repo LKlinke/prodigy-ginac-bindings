@@ -215,21 +215,14 @@ TEST(EquivalenceCheck, trivialIID){
      5:   tmp := 0
      6:}
      */
-    cout << "Invariant" << endl;
     l0 = Dist {"1/(1 - p*n)", "p"} *  Dist {"1/(1 - q*m)", "q"} * Dist {"1/(1 - r*t)", "r"};
-    cout << "l0:\t" << l0 << endl;
     l1 = l0.filterGreater("n", "0");
-    cout << "l1:\t" << l1 << endl;
     l2 = l1.updateIid("t", Dist {"1/6 * T * (T^6 - 1) / (T - 1)"}, "n");
-    cout << "l2:\t" << l2 << endl;
     l3 = l2.updateSum("m", "m", "t");
-    cout << "l3:\t" << l3 << endl;
     l4 = l3.updateVar("n", "0");
-    cout << "l4:\t" << l4 << endl;
     l5 = l4.updateVar("t", "0");
-    cout << "l5:\t" << l5 << endl;
     Dist res1 = l5 + l0.filterLeq("n", "0");
-    cout << "res1:\t" << res1 << endl;
+
 
     /*
      * guard + body + invariant
@@ -249,7 +242,6 @@ TEST(EquivalenceCheck, trivialIID){
     12:}
      *
      */
-    cout << "Modified Inv" << endl;
     l0 = Dist {"1/(1 - p*n)", "p"} *  Dist {"1/(1 - q*m)", "q"} * Dist {"1/(1 - r*t)", "r"};
     l1 = l0.filterGreater("n", "0");
     l2 = l1.updateVar("t", "0") * Dist {"1/6 * t * (t^6 - 1) / (t - 1)"};
@@ -291,7 +283,6 @@ TEST(EquivalenceCheck, dep_bern){
      7: } else {skip}
      */
     
-    cout << "Invariant" << endl;
     l0 = Dist {"1/(1 - p*n)", "p"} *  Dist {"1/(1 - q*m)", "q"} * Dist {"1/(1 - r*c)", "r"} * Dist {"1/(1-s*t)", "s"};
     l1 = l0.filterGreater("c", "0");
     l2 = l1.updateIid("t", Dist {"1/2 * T + 1/2"}, "c");
@@ -319,7 +310,6 @@ TEST(EquivalenceCheck, dep_bern){
      12: }
      */
     
-    cout << "Modified Invariant" << endl;
     l0 = Dist {"1/(1 - p*n)", "p"} *  Dist {"1/(1 - q*m)", "q"} * Dist {"1/(1 - r*c)", "r"} * Dist {"1/(1-s*t)", "s"};
     l1 = l0.filterGreater("c", "0");
     l2 = "1/2" * l1.updateSum("m", "m", "1") + "1/2" * l1.updateSum("n", "n", "1");
@@ -335,8 +325,6 @@ TEST(EquivalenceCheck, dep_bern){
     l11 = l10 + l4.filterLeq("c", "0");
     l12 = l11 + l0.filterLeq("c", "0");
     Dist res2 = l12;
-    
-    cout << res1 - res2 << endl;
     
     ASSERT_EQ(res1, res2);
 }
