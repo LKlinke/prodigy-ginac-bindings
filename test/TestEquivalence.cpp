@@ -252,7 +252,7 @@ TEST(EquivalenceCheck, trivialIID){
     cout << "Modified Inv" << endl;
     l0 = Dist {"1/(1 - p*n)", "p"} *  Dist {"1/(1 - q*m)", "q"} * Dist {"1/(1 - r*t)", "r"};
     l1 = l0.filterGreater("n", "0");
-    l2 = l1.updateVar("t", "0") * Dist {"1/6 * T * (T^6 - 1) / (T - 1)"};
+    l2 = l1.updateVar("t", "0") * Dist {"1/6 * t * (t^6 - 1) / (t - 1)"};
     l3 = l2.updateSum("m", "m", "t");
     l4 = l3.updateVar("t", "0");
     l5 = l4.updateSubtraction("n", "n", "1");
