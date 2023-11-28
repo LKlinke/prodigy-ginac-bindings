@@ -127,16 +127,13 @@ namespace prodigy {
 
     int Dist::evaluate(const std::string &expr, const std::map<std::string, int> &valuations) {
         
-        ex res = parseWithKnownSymbs(expr);
-        
+        parser pars;
+        ex res = pars(expr);
+        symtab st = pars.get_syms();
         lst names;
         lst values;
         for(const auto& var_val : valuations) {
-            if(isKnownAsVar(var_val.first)){
-                names.append(_vars[var_val.first]);
-            } else if(isKnownAsParam(var_val.first)){
-                names.append(_params[var_val.first]);
-            }
+            names.append(st[var_val.first]);
             values.append(valuations.at(var_val.first));
         }
         res = res.subs(names, values);

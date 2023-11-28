@@ -113,7 +113,7 @@ namespace prodigy {
          * evaluates the expression in a given state
          * does not read from or write to the symbol table, the only requirement is that valuations to all symbols in the expression are given
         */
-        int evaluate(const std::string &expr, const std::map<std::string, int> &valuations);
+        static int evaluate(const std::string &expr, const std::map<std::string, int> &valuations);
 
 
 
