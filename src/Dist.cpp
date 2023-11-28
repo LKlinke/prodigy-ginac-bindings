@@ -125,7 +125,7 @@ namespace prodigy {
         throw std::overflow_error("cannot generate more fresh symbols");
     }
 
-    int evaluate(const std::string &expr, const std::map<std::string, int> &valuations) {
+    int Dist::evaluate(const std::string &expr, const std::map<std::string, int> &valuations) {
         
         parser pars;
 
