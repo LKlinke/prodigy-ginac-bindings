@@ -71,7 +71,7 @@ namespace prodigy {
     void Dist::registerAllUnknownSymbsAsVars(const ex &e) {
         for (auto it = e.preorder_begin(); it != e.preorder_end(); ++it) {
             if (is_a<symbol>(*it)) {
-                const auto &s = ex_to<symbol>(*it);
+                const auto &s = ex_to<possymbol>(*it);
                 if (!isSymbKnown(s)) {
                     _vars[s.get_name()] = s;
                 }
@@ -82,7 +82,7 @@ namespace prodigy {
     void Dist::registerAllUnknownSymbsAsParams(const ex &e) {
         for (auto it = e.preorder_begin(); it != e.preorder_end(); ++it) {
             if (is_a<symbol>(*it)) {
-                const auto &s = ex_to<symbol>(*it);
+                const auto &s = ex_to<possymbol>(*it);
                 if (!isSymbKnown(s)) {
                     _params[s.get_name()] = s;
                 }
@@ -162,7 +162,7 @@ namespace prodigy {
         ex e = pars_vars(gfStr);
         for (auto it = e.preorder_begin(); it != e.preorder_end(); ++it) {
             if (is_a<symbol>(*it)) {
-                const auto &s = ex_to<symbol>(*it);
+                const auto &s = ex_to<possymbol>(*it);
                 if (!isSymbKnown(s)) {
                     _vars[s.get_name()] = s;
                 }
@@ -179,7 +179,7 @@ namespace prodigy {
         registerAllUnknownSymbsAsVars(gf);
         for(const auto& pStr : paramsStr) {
             ex param = pars_vars_and_params(pStr); // might throw parse error
-            const auto &pSym = ex_to<symbol>(param);
+            const auto &pSym = ex_to<possymbol>(param);
             deregister(pStr);
             registerAsParam(pSym);
         }
