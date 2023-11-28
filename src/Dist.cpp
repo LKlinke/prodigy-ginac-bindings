@@ -91,12 +91,12 @@ namespace prodigy {
     }
 
     void Dist::registerAsVar(const symbol &p) {
-        assert(!isKnownAsParam(p));
+        EXPECTS(!isKnownAsParam(p), "'variable' " + p.get_name() + " is already known as a parameter.");
         _vars[p.get_name()] = p;
     }
 
     void Dist::registerAsParam(const symbol &p) {
-        assert(!isKnownAsVar(p));
+        EXPECTS(!isKnownAsVar(p), "'parameter' " + p.get_name() + " is already known as a variable.");
         _params[p.get_name()] = p;
     }
 

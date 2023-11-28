@@ -31,27 +31,22 @@ namespace prodigy {
         ex xExp = pars(x);
         ex aExp = pars(a);
         ex bExp = pars(b);
+        Dist res;
         EXPECTS(is_a<symbol>(xExp), "variable of unif distr must be a symbol, got " + x);
+        res.registerAsVar(ex_to<symbol>(xExp));
+
         EXPECTS(is_a<symbol>(aExp) || aExp.info(info_flags::nonnegint), "parameters of unif distr must be a non-neg int or a symbol, got " + a);
         EXPECTS(is_a<symbol>(bExp) || bExp.info(info_flags::nonnegint), "parameters of unif distr must be a non-neg int or a symbol, got " + b);
+
         EXPECTS(!(aExp.info(info_flags::integer) && aExp.info(info_flags::integer)) || ex_to<numeric>(aExp).to_int() <= ex_to<numeric>(bExp).to_int(), "interval [" + a + "," + b + "] is invalid");
 
-        Dist res;
-        xExp = possymbol(x);
         if(is_a<symbol>(aExp) && is_a<symbol>(bExp)){
-            aExp = possymbol(a);
-            bExp = possymbol(b);
-            res._vars[x] = xExp;
-            res._params[a] = aExp;
-            res._params[b] = bExp;
+            res.registerAsParam(ex_to<symbol>(aExp));
+            res.registerAsParam(ex_to<symbol>(bExp));
         } else if (is_a<symbol>(aExp)) {
-            aExp = possymbol(a);
-            res._vars[x] = xExp;
-            res._params[a] = aExp;
+            res.registerAsParam(ex_to<symbol>(aExp));
         } else if (is_a<symbol>(bExp)) {
-            bExp = possymbol(b);
-            res._vars[x] = xExp;
-            res._params[b] = bExp;
+            res.registerAsParam(ex_to<symbol>(bExp));
         }
         ex gf = pow(xExp, aExp) / (bExp - aExp + 1) * (1 - pow(xExp, bExp - aExp + 1)) / (1 - xExp);
         res._gf = gf;
