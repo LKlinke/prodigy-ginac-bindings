@@ -125,18 +125,18 @@ namespace prodigy {
         throw std::overflow_error("cannot generate more fresh symbols");
     }
 
-    int Dist::evaluate(const std::string &expr, const std::map<std::string, int> &valuations) {
+    int evaluate(const std::string &expr, const std::map<std::string, int> &valuations) {
         
-        ex res = parseWithKnownSymbs(expr);
-        
+        parser pars;
+
+        ex res = pars(expr);
+        auto syms = pars.get_syms();
+
         lst names;
         lst values;
-        for(const auto& var_val : valuations) {
-            if(isKnownAsVar(var_val.first)){
-                names.append(_vars[var_val.first]);
-            } else if(isKnownAsParam(var_val.first)){
-                names.append(_params[var_val.first]);
-            }
+        for(const auto& var_val : syms) {
+            EXPECTS(valuations.find(var_val.first) != valuations.end(), "Missing valuation for variable " + var_val.first);
+            names.append(pars.get_syms().at(var_val.first));
             values.append(valuations.at(var_val.first));
         }
         res = res.subs(names, values);
