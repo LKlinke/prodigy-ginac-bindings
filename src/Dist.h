@@ -392,13 +392,13 @@ namespace prodigy {
             for (const auto& var : rhs._vars){
                 EXPECTS(!result.isKnownAsParam(var.first), "variable " + var.first + " is known as parameter.");
                 if(!result.isKnownAsVar(var.first)){
-                    result.registerAsVar(ex_to<symbol>(var.second));
+                    result.registerAsVar(GiNaC::ex_to<symbol>(var.second));
                 }
             }
             for (const auto& param: rhs._params){
                 EXPECTS(!result.isKnownAsVar(param.first), "parameter " + param.first + " is known as variable.");
                 if(!result.isKnownAsParam(param.first)){
-                    result.registerAsParam(ex_to<symbol>(param.second));
+                    result.registerAsParam(GiNaC::ex_to<symbol>(param.second));
                 }
             }
 
@@ -428,13 +428,13 @@ namespace prodigy {
             for (const auto& var : rhs._vars){
                 EXPECTS(!result.isKnownAsParam(var.first), "variable is known as parameter.");
                 if(!result.isKnownAsVar(var.first)){
-                    result.registerAsVar(ex_to<symbol>(var.second));
+                    result.registerAsVar(GiNaC::ex_to<symbol>(var.second));
                 }
             }
             for (const auto& param: rhs._params){
                 EXPECTS(!result.isKnownAsVar(param.first), "parameter is known as variable.");
                 if(!result.isKnownAsParam(param.first)){
-                    result.registerAsParam(ex_to<symbol>(param.second));
+                    result.registerAsParam(GiNaC::ex_to<symbol>(param.second));
                 }
             }
 
