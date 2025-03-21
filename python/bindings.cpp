@@ -50,7 +50,7 @@ PYBIND11_MODULE(pygin, m) {
             .def("filterLeq", &Dist::filterLeq)
             .def("filterGreater", &Dist::filterGreater)
             .def("filterGeq", &Dist::filterGeq)
-            .def("get_fresh_variable", &Dist::getFreshVariable)
+            .def("get_fresh_variable", [](Dist& dist) {return dist.getFreshVariable();})
             .def("coefficient_iterator", &Dist::coefficientIterator)
             .def("is_known_as_var", [](const Dist& dist, const string& x) {return dist.isKnownAsVar(x);})
             .def("is_known_as_param", [](const Dist& dist, const string& x) {return dist.isKnownAsParam(x);})
