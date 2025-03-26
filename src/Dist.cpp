@@ -751,7 +751,7 @@ namespace prodigy {
                 }
                 result += res.parseWithKnownSymbs(state.toString()).subs(lhs == 1) * GiNaC::pow(lhs, mod(leftVar, rightVar));
             }
-            return Dist(res);
+            return Dist(result);
         }
         // if the distribution is infinite and right is a variable, it needs to have finite range
         else if(res.isKnownAsVar(right)) {
