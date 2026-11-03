@@ -31,6 +31,24 @@ namespace prodigy {
         return res;
     }
 
+    ex Dist::parse(const std::string &s, str2sym &table, bool unknownAreVariables) {
+        parser pars(table);
+        ex e = pars(s); // might throw parse error
+        exmap renaming;
+        for (const auto &name : pars.get_syms()) {
+            if (table.find(name.first) == table.end()) {
+                // GiNaC's parser creates plain symbols for unknown names, variables are possymbols
+                ex sym = name.second;
+                if (unknownAreVariables) {
+                    sym = possymbol(name.first);
+                    renaming[name.second] = sym;
+                }
+                table[name.first] = sym;
+            }
+        }
+        return renaming.empty() ? e : e.subs(renaming, subs_options::no_pattern);
+    }
+
     Dist::str2sym Dist::paramsAndVars() const {
         str2sym res = _params;
         res.insert(_vars.begin(), _vars.end());
@@ -61,17 +79,15 @@ namespace prodigy {
         return _params.find(s) != _params.end();
     }
 
-    ex Dist::parseWithKnownSymbs(const std::string &s) const {
+    ex Dist::parseWithKnownSymbs(const std::string &s, bool unknownAreVariables) const {
         str2sym syms = this->paramsAndVars();
-        parser pars(syms);
-        ex parsed = pars(s); // might throw parse error
-        return parsed;
+        return parse(s, syms, unknownAreVariables); // might throw parse error
     }
 
     void Dist::registerAllUnknownSymbsAsVars(const ex &e) {
         for (auto it = e.preorder_begin(); it != e.preorder_end(); ++it) {
             if (is_a<symbol>(*it)) {
-                const auto &s = ex_to<possymbol>(*it);
+                const auto &s = ex_to<symbol>(*it);
                 if (!isSymbKnown(s)) {
                     _vars[s.get_name()] = s;
                 }
@@ -82,7 +98,7 @@ namespace prodigy {
     void Dist::registerAllUnknownSymbsAsParams(const ex &e) {
         for (auto it = e.preorder_begin(); it != e.preorder_end(); ++it) {
             if (is_a<symbol>(*it)) {
-                const auto &s = ex_to<possymbol>(*it);
+                const auto &s = ex_to<symbol>(*it);
                 if (!isSymbKnown(s)) {
                     _params[s.get_name()] = s;
                 }
@@ -115,8 +131,12 @@ namespace prodigy {
             if (is_a<symbol>(*it)) {
                 const auto &s = ex_to<symbol>(*it);
                 if (!isSymbKnown(s)) {
-                    _vars[s.get_name()] = s;
-                    continue;
+                    // variables are possymbols
+                    if (is_a<possymbol>(s)) {
+                        _vars[s.get_name()] = s;
+                        continue;
+                    }
+                    _vars[s.get_name()] = possymbol(s.get_name());
                 }
                 const ex &known = isKnownAsParam(s) ? _params.at(s.get_name()) : _vars.at(s.get_name());
                 if (!known.is_equal(s)) {
@@ -189,31 +209,23 @@ namespace prodigy {
 /* public interface of dist */
 
     Dist::Dist(const std::string &gfStr) {
-        parser pars_vars;
-        ex e = pars_vars(gfStr);
-        for (auto it = e.preorder_begin(); it != e.preorder_end(); ++it) {
-            if (is_a<symbol>(*it)) {
-                const auto &s = ex_to<possymbol>(*it);
-                if (!isSymbKnown(s)) {
-                    _vars[s.get_name()] = s;
-                }
-            }
-        }
+        str2sym table;
+        ex e = parse(gfStr, table);
+        registerAllUnknownSymbsAsVars(e);
         setGf(e);
         
         assumptions = {};
     }
 
     Dist::Dist(const std::string &gfStr, const std::vector<std::string> &paramsStr) {
-        parser pars_vars_and_params;
-        ex gf = pars_vars_and_params(gfStr); // might throw parse error
-        registerAllUnknownSymbsAsVars(gf);
+        str2sym table;
         for(const auto& pStr : paramsStr) {
-            ex param = pars_vars_and_params(pStr); // might throw parse error
-            const auto &pSym = ex_to<possymbol>(param);
-            deregister(pStr);
-            registerAsParam(pSym);
+            ex param = parse(pStr, table, false); // might throw parse error
+            EXPECTS(is_a<symbol>(param), "parameter " + pStr + " is not a symbol");
+            registerAsParam(ex_to<symbol>(param));
         }
+        ex gf = parse(gfStr, table); // might throw parse error
+        registerAllUnknownSymbsAsVars(gf);
         setGf(gf);
         assumptions = {};
     }
@@ -391,10 +403,8 @@ namespace prodigy {
 
     troolean Dist::isFiniteSupport() const {
         lst vars;
-        for(auto var : this->getSymbols()) {
-            if(isKnownAsVar(var)) {
-                vars.append(var);
-            }
+        for(const auto& var : _vars) {
+            vars.append(var.second);
         }
         if(_gf.is_polynomial(vars)) {
             return troolean::TRUE;
@@ -472,12 +482,12 @@ namespace prodigy {
         return res;
     }
 
-    std::vector<symbol> Dist::getSymbols() const {
+    std::vector<ex> Dist::getSymbols() const {
         
-        std::vector<symbol> res;
+        std::vector<ex> res;
 
         for(const auto& item : this->paramsAndVars() ) {
-            res.push_back(ex_to<symbol>(item.second));
+            res.push_back(item.second);
         }
         return res;
     }
@@ -1175,7 +1185,7 @@ namespace prodigy {
 
     Dist::CoefficientIterator Dist::coefficientIterator(const std::string &var) const {
         EXPECTS(isKnownAsVar(var), "can only expand series in known variables -- not in " + var);
-        return CoefficientIterator(*this, ex_to<symbol>(_vars.at(var)));
+        return CoefficientIterator(*this, _vars.at(var));
     }
 
     Dist Dist::substituteParam(const std::string &p, const std::string &val) const {
@@ -1185,7 +1195,7 @@ namespace prodigy {
         }
         Dist result(*this);
         ex pSym = result._params[p];
-        ex parsed = result.parseWithKnownSymbs(val);
+        ex parsed = result.parseWithKnownSymbs(val, false);
         result.registerAllUnknownSymbsAsParams(parsed);
         // todo error if parsed contains known variables
         result.setGf(result._gf.subs(pSym == parsed));
@@ -1207,7 +1217,7 @@ namespace prodigy {
 
     Dist operator*(const Dist &lhs, const std::string &rhs) {
         Dist result(lhs);
-        auto ex_rhs = result.parseWithKnownSymbs(rhs);
+        auto ex_rhs = result.parseWithKnownSymbs(rhs, false);
 
         result.registerAllUnknownSymbsAsParams(ex_rhs);
         // todo error if parsed contained known variables

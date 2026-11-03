@@ -101,7 +101,8 @@ static void expectLinked(const Dist& r) {
     s << r;
     std::vector<std::string> params;
     for (const auto& sym : r.getSymbols()) {
-        if (r.isKnownAsParam(sym.get_name())) params.push_back(sym.get_name());
+        const auto& name = GiNaC::ex_to<GiNaC::symbol>(sym).get_name();
+        if (r.isKnownAsParam(name)) params.push_back(name);
     }
     EXPECT_TRUE((r - Dist(s.str(), params)).isZero() == troolean::TRUE) << s.str();
 }
@@ -117,4 +118,47 @@ TEST(Dist, registeredSymbols) {
     Dist::CoefficientIterator it = Fac::geometric("x", "1/2").coefficientIterator("x");
     it.next();
     expectLinked(it.rest());
+}
+
+// variables are possymbols, parameters are plain symbols (issue #5), also in results
+static void expectPossymbols(const Dist& r) {
+    for (auto it = r.gf().preorder_begin(); it != r.gf().preorder_end(); ++it) {
+        if (GiNaC::is_a<GiNaC::symbol>(*it)) {
+            const auto& name = GiNaC::ex_to<GiNaC::symbol>(*it).get_name();
+            EXPECT_EQ(GiNaC::is_a<GiNaC::possymbol>(*it), r.isKnownAsVar(name)) << *it << " in " << r;
+        }
+    }
+    for (const auto& sym : r.getSymbols()) {
+        const auto& name = GiNaC::ex_to<GiNaC::symbol>(sym).get_name();
+        EXPECT_EQ(GiNaC::is_a<GiNaC::possymbol>(sym), r.isKnownAsVar(name)) << sym;
+    }
+}
+
+TEST(Dist, possymbols) {
+    expectPossymbols(Dist("x*y^2"));
+    expectPossymbols(Dist("p*x + (1-p)", "p"));
+    expectPossymbols(Fac::geometric("x", "p"));
+    expectPossymbols(Fac::uniform("x", "a", "b"));
+    expectPossymbols(Fac::dirac("x", "n"));
+    expectPossymbols(Fac::catalan("x", "p"));
+    Dist dist = Fac::geometric("x", "p");
+    expectPossymbols(dist.updateSum("y", "x", "z"));
+    expectPossymbols(dist.updateIid("y", Dist("q*n + (1-q)", "q"), "x"));
+    expectPossymbols(dist.coefficientIterator("x").next());
+    expectPossymbols(dist * "r");
+    expectPossymbols(dist.substituteParam("p", "s"));
+    Dist fresh = dist;
+    expectPossymbols(dist.updateVar(fresh.getFreshVariable(), "x"));
+    expectPossymbols(dist.updateRoot("r", "4", "2", std::nullopt));
+}
+
+// simplifications that hold for positive variables are applied eagerly, before any substitution (issue #5)
+TEST(Dist, positiveVariables) {
+    Dist dist("sqrt(x^2)");
+    GiNaC::ex x = dist.getSymbols().at(0);
+    ASSERT_TRUE(dist.gf().is_equal(x));
+    EXPECT_TRUE(dist.gf().subs(x == -x).is_equal(-x));
+    EXPECT_TRUE(dist.gf().subs(x == GiNaC::I * x).is_equal(GiNaC::I * x));
+    // parameters may be negative
+    EXPECT_FALSE(Dist("sqrt(a^2)", "a") == Dist("a", "a"));
 }

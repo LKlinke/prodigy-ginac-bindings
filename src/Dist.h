@@ -55,6 +55,19 @@ namespace prodigy {
         /* static parts */
 
         static std::vector<std::string> find_symbols(const std::string &exp);
+
+        /*
+         * parses 's', linking symbol names to the symbols in 'table'
+         * unknown names are added to 'table', as possymbols if 'unknownAreVariables', otherwise as plain symbols
+         *
+         * Variables are possymbols, i.e. GiNaC regards them as positive reals; parameters are plain symbols, since
+         * they may be negative. This is sound for variables: a gf is a power series in its variables, and GiNaC only
+         * applies simplifications that hold for all positive values of the variables, eagerly, e.g.
+         * (x^2)^(9/2) -> x^9 or sqrt(x^2) -> x. If both sides of such a simplification are analytic at 0, they agree
+         * on an interval (0, r) and therefore, by the identity theorem, have the same power series. Later
+         * substitutions such as x -> -x or x -> exp(2*Pi*I/k)*x then apply to the simplified gf.
+         */
+        static ex parse(const std::string& s, str2sym& table, bool unknownAreVariables = true);
         
         /* constructors */
 
@@ -146,8 +159,9 @@ namespace prodigy {
          * attempts to convert the given string to an expression
          * links all syntactic symbol names (e.g. "x") to the symbol objects registered in the tables _vars and _params
          * new symbols are created for unknown names, but they are not registered
+         * the new symbols are variables (possymbols) if 'unknownAreVariables', otherwise parameters (plain symbols)
          */
-        ex parseWithKnownSymbs(const std::string& s) const;
+        ex parseWithKnownSymbs(const std::string& s, bool unknownAreVariables = true) const;
 
         void registerAllUnknownSymbsAsVars(const ex& e);
         void registerAllUnknownSymbsAsParams(const ex& e);
@@ -275,8 +289,9 @@ namespace prodigy {
 
         /**
          * returns all symbols that occur in this distribution (variables and parameters)
+         * as ex: copying a possymbol into a symbol would slice it into a different symbol
          */
-        std::vector<symbol> getSymbols() const;
+        std::vector<ex> getSymbols() const;
 
         /**
          * performs the update updatedVar := assignVar
@@ -343,10 +358,10 @@ namespace prodigy {
             str2sym _params;
             str2sym _vars;
             ex _rest;
-            symbol _var;
+            ex _var;
             int _n;
         public:
-            CoefficientIterator(Dist dist, symbol var) : _params(std::move(dist._params)), _vars(std::move(dist._vars)), _rest(std::move(dist._gf)), _var(std::move(var)), _n(1) {}
+            CoefficientIterator(Dist dist, ex var) : _params(std::move(dist._params)), _vars(std::move(dist._vars)), _rest(std::move(dist._gf)), _var(std::move(var)), _n(1) {}
             Dist next();
             Dist rest() const { return withSymbols(_rest); }
         private:

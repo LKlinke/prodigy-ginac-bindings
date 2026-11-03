@@ -12,13 +12,13 @@ namespace prodigy {
     Dist DistributionFactory::geometric(const std::string &x, const std::string &p) {
         Dist res;
 
-        parser parse;
-        ex xExp = parse(x);
+        symtab table;
+        ex xExp = Dist::parse(x, table);
         EXPECTS(is_a<symbol>(xExp), "variable of geom distr must be a symbol");
         res.registerAsVar(ex_to<symbol>(xExp));
-        ex pExp = parse(p);
+        ex pExp = Dist::parse(p, table, false);
         if (is_a<symbol>(pExp)) {
-            res.registerAsParam(ex_to<possymbol>(pExp));
+            res.registerAsParam(ex_to<symbol>(pExp));
         }
         else EXPECTS(pExp.info(info_flags::nonnegative), "parameter " + p + " is either a non-negative number or not a symbol.");
         ex gf = (pExp) / (1 - (1 - (pExp)) * xExp);
@@ -27,10 +27,10 @@ namespace prodigy {
     }
 
     Dist DistributionFactory::uniform(const std::string& x, const std::string& a, const std::string& b) {
-        parser pars;
-        ex xExp = pars(x);
-        ex aExp = pars(a);
-        ex bExp = pars(b);
+        symtab table;
+        ex xExp = Dist::parse(x, table);
+        ex aExp = Dist::parse(a, table, false);
+        ex bExp = Dist::parse(b, table, false);
         Dist res;
         EXPECTS(is_a<symbol>(xExp), "variable of unif distr must be a symbol, got " + x);
         res.registerAsVar(ex_to<symbol>(xExp));
@@ -54,9 +54,9 @@ namespace prodigy {
     }
 
     Dist DistributionFactory::dirac(const std::string &x, const std::string &n) {
-        parser pars;
-        ex xExp = pars(x);
-        ex nExp = pars(n);
+        symtab table;
+        ex xExp = Dist::parse(x, table);
+        ex nExp = Dist::parse(n, table, false);
         EXPECTS(is_a<symbol>(xExp), "variable of Dirac distr must be a symbol, got " + x);
         EXPECTS(is_a<symbol>(nExp) || nExp.info(info_flags::nonnegint), "parameter of Dirac distribution must be a non-neg int or a symbol, got " + n);
         // register variable/parameters in case we don't know them yet
@@ -71,16 +71,16 @@ namespace prodigy {
     }
 
     Dist DistributionFactory::catalan(const std::string &x, const std::string &p) {
-        parser pars;
-        ex xExp = pars(x);
-        ex pExp = pars(p);
+        symtab table;
+        ex xExp = Dist::parse(x, table);
+        ex pExp = Dist::parse(p, table, false);
         EXPECTS(is_a<symbol>(xExp), "variable of Catalan distr must be a symbol, got " + x);
         EXPECTS(is_a<symbol>(pExp) || pExp.info(info_flags::positive), "parameter of Catalan distribution must be a positive real or a symbol, got " + p);
         
         Dist res;
         res.registerAsVar(ex_to<symbol>(xExp));
         if(is_a<symbol>(pExp)) {
-            res.registerAsParam(ex_to<possymbol>(pExp));
+            res.registerAsParam(ex_to<symbol>(pExp));
         }
         ex gf = (1 - sqrt(1 - 4 * pExp * (1-pExp) * xExp)) / (2 * pExp);
         res.setGf(gf);
