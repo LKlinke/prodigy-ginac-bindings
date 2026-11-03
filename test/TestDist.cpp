@@ -95,3 +95,26 @@ TEST(Dist, coefficientIterator) {
     EXPECT_ANY_THROW(dist.coefficientIterator("y"));
     ASSERT_EQ(dist2, dist3);
 }
+// r - Dist(str(r)) is zero only if the gf of r uses the registered symbols (issue #3)
+static void expectLinked(const Dist& r) {
+    std::stringstream s;
+    s << r;
+    std::vector<std::string> params;
+    for (const auto& sym : r.getSymbols()) {
+        if (r.isKnownAsParam(sym.get_name())) params.push_back(sym.get_name());
+    }
+    EXPECT_TRUE((r - Dist(s.str(), params)).isZero() == troolean::TRUE) << s.str();
+}
+
+TEST(Dist, registeredSymbols) {
+    for (const auto& part : Dist("1/(2-x)").arithmeticProgression("x", "2")) {
+        expectLinked(part);
+    }
+    expectLinked(Dist("1/2*x^3+1/2*x^4").updateModulo("x", "x", "2", {"x"}, true, std::nullopt));
+    expectLinked(Dist("1/2*x+1/2", "p").updateIid("y", Dist("p*n+(1-p)", "p"), "x"));
+    expectLinked(Fac::dirac("x", "3"));
+    expectLinked(Dist("x^2").setAssumptions({}));
+    Dist::CoefficientIterator it = Fac::geometric("x", "1/2").coefficientIterator("x");
+    it.next();
+    expectLinked(it.rest());
+}

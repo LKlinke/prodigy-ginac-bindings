@@ -109,6 +109,37 @@ namespace prodigy {
         }
     }
 
+    ex Dist::linkSymbs(const ex &e) {
+        exmap renaming;
+        for (auto it = e.preorder_begin(); it != e.preorder_end(); ++it) {
+            if (is_a<symbol>(*it)) {
+                const auto &s = ex_to<symbol>(*it);
+                if (!isSymbKnown(s)) {
+                    _vars[s.get_name()] = s;
+                    continue;
+                }
+                const ex &known = isKnownAsParam(s) ? _params.at(s.get_name()) : _vars.at(s.get_name());
+                if (!known.is_equal(s)) {
+                    // same name, but a different GiNaC symbol
+                    renaming[s] = known;
+                }
+            }
+        }
+        return renaming.empty() ? e : e.subs(renaming, subs_options::no_pattern);
+    }
+
+    void Dist::setGf(const ex &gf) {
+        _gf = linkSymbs(gf);
+    }
+
+    Dist Dist::withGf(const ex &gf) const {
+        Dist res;
+        res._params = _params;
+        res._vars = _vars;
+        res.setGf(gf);
+        return res;
+    }
+
     std::string Dist::getFreshVariable() {
         uint i = 0;
         do {
@@ -168,7 +199,7 @@ namespace prodigy {
                 }
             }
         }
-        _gf=e;
+        setGf(e);
         
         assumptions = {};
     }
@@ -183,7 +214,7 @@ namespace prodigy {
             deregister(pStr);
             registerAsParam(pSym);
         }
-        _gf = gf;
+        setGf(gf);
         assumptions = {};
     }
 
@@ -196,7 +227,7 @@ namespace prodigy {
     }
 
     const Dist Dist::setAssumptions(const std::vector<std::shared_ptr<Assumption>>& assumptions) const {
-        Dist res(_gf);
+        Dist res(*this);
         res.assumptions = assumptions;
         return res;
     }
@@ -250,7 +281,7 @@ namespace prodigy {
 
     Dist Dist::normalize() const {
         Dist result(*this);
-        result._gf = result._gf / result.mass();
+        result.setGf(result._gf / result.mass());
         return result;
     }
 
@@ -267,7 +298,7 @@ namespace prodigy {
             }
         }
         res = res.subs(names, values);
-        result._gf = res;
+        result.setGf(res);
         return result;
     }
 
@@ -287,7 +318,7 @@ namespace prodigy {
             }
         }
         res = res.subs(names, values);
-        result._gf = res;
+        result.setGf(res);
         return result;
     }
 
@@ -436,7 +467,7 @@ namespace prodigy {
                 psum += GiNaC::pow(root, -m * rem) * 
                     _gf.subs(exVar == GiNaC::pow(root, m) * exVar);
             }
-            res.push_back(Dist(psum/exMod));
+            res.push_back(withGf(psum/exMod));
         }
         return res;
     }
@@ -495,12 +526,12 @@ namespace prodigy {
             //EXPECTS(isKnownAsVar(assignVar), "cannot substitute " + updatedVar + " := " + assignVar + " -- " + assignVar + " is unknown.");
             if(!result.isKnownAsVar(ex_to<symbol>(exAssignVar))){
                 result.registerAsVar(ex_to<symbol>(exAssignVar));
-                result._gf = result._gf.subs(exUpdatedVar == exAssignVar);
+                result.setGf(result._gf.subs(exUpdatedVar == exAssignVar));
             } else {
-                result._gf = result._gf.subs(exUpdatedVar == 1).subs(exAssignVar == exAssignVar * exUpdatedVar);
+                result.setGf(result._gf.subs(exUpdatedVar == 1).subs(exAssignVar == exAssignVar * exUpdatedVar));
             }
         } else {
-            result._gf = (exAssignVar != 0 ? result._gf : result._gf.normal()).subs(exUpdatedVar == 1) * GiNaC::pow(exUpdatedVar, exAssignVar);
+            result.setGf((exAssignVar != 0 ? result._gf : result._gf.normal()).subs(exUpdatedVar == 1) * GiNaC::pow(exUpdatedVar, exAssignVar));
         }
         return result;
     }
@@ -528,12 +559,12 @@ namespace prodigy {
             }
             if(exFirstSummand == exUpdatedVar) {
                 if(exSecondSummand == exUpdatedVar) {
-                    res._gf = res._gf.subs(exUpdatedVar == GiNaC::pow(exUpdatedVar, 2));
+                    res.setGf(res._gf.subs(exUpdatedVar == GiNaC::pow(exUpdatedVar, 2)));
                 } else {
-                    res._gf = res._gf.subs(exSecondSummand == exSecondSummand * exUpdatedVar);
+                    res.setGf(res._gf.subs(exSecondSummand == exSecondSummand * exUpdatedVar));
                 }
             } else {
-                res._gf = res._gf.subs(exUpdatedVar == 1).subs(exFirstSummand == exFirstSummand * exUpdatedVar).subs(exSecondSummand == exSecondSummand * exUpdatedVar);
+                res.setGf(res._gf.subs(exUpdatedVar == 1).subs(exFirstSummand == exFirstSummand * exUpdatedVar).subs(exSecondSummand == exSecondSummand * exUpdatedVar));
             }
             return res;
         }
@@ -546,14 +577,14 @@ namespace prodigy {
                 lit = exFirstSummand;
             }
             if(var != exUpdatedVar) {
-                res._gf = res._gf.subs(exUpdatedVar == 1).subs(var == exUpdatedVar * var);
+                res.setGf(res._gf.subs(exUpdatedVar == 1).subs(var == exUpdatedVar * var));
             }
-            res._gf *= GiNaC::pow(exUpdatedVar, lit);
+            res.setGf(res._gf * GiNaC::pow(exUpdatedVar, lit));
             return res;
         }
         // we add two literals / parameters
         else {
-            res._gf = res._gf.subs(exUpdatedVar ==1) * GiNaC::pow(exUpdatedVar, exFirstSummand + exSecondSummand);
+            res.setGf(res._gf.subs(exUpdatedVar ==1) * GiNaC::pow(exUpdatedVar, exFirstSummand + exSecondSummand));
             return res;
         }
     }
@@ -610,7 +641,7 @@ namespace prodigy {
                     result += res.filterEq(finite_var, val)
                         .updateProduct(updatedVar, val, infinite_var, variables, other_finite, approx)._gf;
                 }
-                res._gf = result;
+                res.setGf(result);
                 return res;
             }
             // finite distribution
@@ -622,7 +653,7 @@ namespace prodigy {
                     term = term.subs(lhs == 1) * GiNaC::pow(lhs, state.vals.at(firstFactor) * state.vals.at(secondFactor));
                     result += term;
                 }
-                res._gf = result;
+                res.setGf(result);
                 return res;
             }
         }
@@ -637,16 +668,16 @@ namespace prodigy {
                 lit = fac1;
             }
             if(var == lhs) {
-                res._gf = res._gf.subs(lhs == GiNaC::pow(lhs, lit));
+                res.setGf(res._gf.subs(lhs == GiNaC::pow(lhs, lit)));
                 return res;
             } else {
-                res._gf = res._gf.subs(lhs == 1).subs(var == var * GiNaC::pow(lhs, lit));
+                res.setGf(res._gf.subs(lhs == 1).subs(var == var * GiNaC::pow(lhs, lit)));
                 return res;
             }
         }
         // we multiply two literals
         else {
-            res._gf = res._gf.subs(lhs == 1) * GiNaC::pow(lhs, fac1 * fac2);
+            res.setGf(res._gf.subs(lhs == 1) * GiNaC::pow(lhs, fac1 * fac2));
             return res;
         }
     }
@@ -714,7 +745,7 @@ namespace prodigy {
             EXPECTS(sub1 >= sub2, "result can be negative");
             result = res._gf.subs(lhs == 1) * GiNaC::pow(lhs, sub1 - sub2);
         }
-        res._gf = result;
+        res.setGf(result);
         return res;
             
     }
@@ -751,7 +782,7 @@ namespace prodigy {
                 }
                 result += res.parseWithKnownSymbs(state.toString()).subs(lhs == 1) * GiNaC::pow(lhs, mod(leftVar, rightVar));
             }
-            return Dist(result);
+            return res.withGf(result);
         }
         // if the distribution is infinite and right is a variable, it needs to have finite range
         else if(res.isKnownAsVar(right)) {
@@ -768,7 +799,7 @@ namespace prodigy {
                 result += res.filterEq(right, right_val)
                     .updateModulo(updatedVar, left, right_val, variables, is_finite ? true : std::optional<bool>(), approx)._gf;
             }
-            res._gf = result;
+            res.setGf(result);
             return res;
         }
         // if left is a variable, it doesn't have to have finite range
@@ -787,7 +818,7 @@ namespace prodigy {
                     result += prog.at(i)._gf.subs(lhs == 1) * GiNaC::pow(lhs, i);
                 }
             }
-            res._gf = result;
+            res.setGf(result);
             return res;
         }
         // if both are not variables, simply compute the result
@@ -819,7 +850,7 @@ namespace prodigy {
                 } else {
                     res = result._gf.subs(lhs == 1).subs(div1 == div1*pow(lhs, 1/div2));
                 }
-                result._gf = res;
+                result.setGf(res);
                 return result;
             }
         }
@@ -834,7 +865,7 @@ namespace prodigy {
                 marginal_l = marginal_l.approximateUnilaterally(numerator, approx.value());
             }
         } else {
-            marginal_l = Dist(div1);
+            marginal_l = result.withGf(div1);
         }
         if(result.isKnownAsVar(denominator)) {
             marginal_r = result.marginal(denominator);
@@ -845,7 +876,7 @@ namespace prodigy {
                 marginal_r = marginal_r.approximateUnilaterally(denominator, approx.value());
             }
         } else {
-            marginal_r = Dist(div2);
+            marginal_r = result.withGf(div2);
         }
 
         if(result.isKnownAsVar(numerator)) {
@@ -879,7 +910,7 @@ namespace prodigy {
                 res = result._gf.subs(lhs == 1) * GiNaC::pow(lhs, div1 / div2);
             }
         }
-        result._gf = res;
+        result.setGf(res);
         return result;
     }
 
@@ -953,7 +984,7 @@ namespace prodigy {
         else {
             res = res.subs(lhs == 1) * GiNaC::pow(lhs, GiNaC::pow(pow1, pow2));
         }
-        result._gf = res;
+        result.setGf(res);
         return result;
     }
 
@@ -1012,7 +1043,7 @@ namespace prodigy {
             EXPECTS(is_a<numeric>(number) && is_a<numeric>(root), "radicand or index is neither a known symbol nor a numeric");
             res = result._gf.subs(lhs == 1) * pow(lhs, nthRoot(ex_to<numeric>(number).to_int(), ex_to<numeric>(root).to_int()));
         }
-        result._gf = res;
+        result.setGf(res);
         return result;
     }
 
@@ -1036,7 +1067,7 @@ namespace prodigy {
             mass_res += next.mass();
         }
         Dist result(*this);
-        result._gf = res;
+        result.setGf(res);
         return result;
     }
 
@@ -1058,41 +1089,44 @@ namespace prodigy {
         for(auto sym : d._vars)
                 substitute = substitute.subs(sym.second == exX);
 
-        for(auto sym : d._params)
-            if(!result.isKnownAsParam(ex_to<symbol>(sym.second)) && !result.isKnownAsVar(ex_to<symbol>(sym.second))){
-                result.registerAsParam(ex_to<symbol>(sym.second));
+        // the parameters of d are parameters of the result; setGf replaces d's parameter symbols by the result's
+        for(const auto& param : d._params) {
+            EXPECTS(!result.isKnownAsVar(param.first), "parameter " + param.first + " is known as variable.");
+            if(!result.isKnownAsParam(param.first)) {
+                result.registerAsParam(ex_to<symbol>(param.second));
             }
+        }
 
         // x is not known
         if(!result.isKnownAsVar(ex_to<symbol>(exX))){
             // x is a fresh variable.
             result.registerAsVar(ex_to<symbol>(exX));
-            if(!result.isKnownAsVar(ex_to<symbol>(exY))){
+            if(!result.isKnownAsVar(y)){
                 if(exY.info(info_flags::nonnegint)){
                     // y is just a number
-                    result._gf *= pow(substitute, exY);
+                    result.setGf(result._gf * pow(substitute, exY));
                 }
                 // y is a fresh variable (nothing to do in this case).
             } else {
                 // y is a known variable
-                result._gf = result._gf.subs(exY == (exY * substitute));
+                result.setGf(result._gf.subs(exY == (exY * substitute)));
             }
         } else {
             // x is a known variable thus we might need to marginalize.
-            if(!result.isKnownAsVar(ex_to<symbol>(exY))){
+            if(!result.isKnownAsVar(y)){
                 if(exY.info(info_flags::nonnegint)){
                     // y is just a number -> marginalize
-                    result._gf = result._gf.subs(exX == 1) * pow(substitute, exY);
+                    result.setGf(result._gf.subs(exX == 1) * pow(substitute, exY));
                 }
                 // y is a fresh variable (nothing to do in this case).
             } else {
                 // y is a known variable
                 if (x == y){
                     // in this case we do not have to marginalize!
-                    result._gf = result._gf.subs(exY == substitute);
+                    result.setGf(result._gf.subs(exY == substitute));
                 } else {
                     // z and y are different so we need to marginalize.
-                    result._gf = result._gf.subs(exX == 1).subs(exY == (exY * substitute));
+                    result.setGf(result._gf.subs(exX == 1).subs(exY == (exY * substitute)));
                 }
                 
             }
@@ -1119,7 +1153,7 @@ namespace prodigy {
             xExp = result._vars.at(x);
         }
         ex series = result._gf.series(xExp, order);
-        result._gf = series_to_poly(series);
+        result.setGf(series_to_poly(series));
         return result;
     }
 
@@ -1128,10 +1162,14 @@ namespace prodigy {
         _n++;
         _rest = (_rest - nextTerm).normal();
         ex nextCoeff = nextTerm.subs(_var == 1);
+        return withSymbols(nextCoeff);
+    }
+
+    Dist Dist::CoefficientIterator::withSymbols(const ex &gf) const {
         Dist result;
-        result._gf = nextCoeff;
         result._vars = _vars;
         result._params = _params;
+        result.setGf(gf);
         return result;
     }
 
@@ -1150,7 +1188,7 @@ namespace prodigy {
         ex parsed = result.parseWithKnownSymbs(val);
         result.registerAllUnknownSymbsAsParams(parsed);
         // todo error if parsed contains known variables
-        result._gf = result._gf.subs(pSym == parsed);
+        result.setGf(result._gf.subs(pSym == parsed));
         return result;
     }
 
@@ -1175,7 +1213,7 @@ namespace prodigy {
         // todo error if parsed contained known variables
         // parsed contains just unknown symbs and known params
         // no error from now on
-        result._gf *= ex_rhs;
+        result.setGf(result._gf * ex_rhs);
         return result;
     }
 
