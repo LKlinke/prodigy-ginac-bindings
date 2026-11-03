@@ -1,0 +1,70 @@
+# Builds and tests the wheels (cibuildwheel, configuration in pyproject.toml) and the sdist.
+name: Wheels
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+  # release.yml builds the distributions it publishes with this workflow
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  wheels:
+    name: wheels ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    # most of the time goes into building GMP, CLN and GiNaC once per runner
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        # Linux x86_64 and aarch64, macOS x86_64 and arm64; each builds its native architecture
+        os: [ ubuntu-24.04, ubuntu-24.04-arm, macos-15-intel, macos-15 ]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # the version comes from the tags (setuptools-scm)
+          fetch-depth: 0
+      # build-frontend build[uv] needs uv on the host on macOS; the manylinux images bring their own
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: pypa/cibuildwheel@b3395e271a35f73dad77f21802abe9b986dfe299 # v4.3.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+          retention-days: 14
+
+  sdist:
+    name: sdist
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.11"
+      - run: uv build --sdist
+      - name: Build and test the sdist against the system GiNaC
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libginac-dev pkg-config
+          uv venv /tmp/sdist
+          uv pip install --python /tmp/sdist dist/*.tar.gz pytest
+          cd python && /tmp/sdist/bin/python -m pytest test_wheel.py && /tmp/sdist/bin/python test.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+          retention-days: 14

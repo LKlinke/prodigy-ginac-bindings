@@ -1,0 +1,77 @@
+[build-system]
+requires = ["scikit-build-core>=0.11", "pybind11>=2.13", "setuptools-scm>=8"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "prodigy-ppl-ginac"
+dynamic = ["version"]
+description = "GiNaC-based Python bindings for manipulating distributions through generating functions, used by Prodigy"
+readme = "README.md"
+requires-python = ">=3.11"
+# The bindings are Apache-2.0. The wheels link GiNaC and CLN (GPL-2.0-or-later) and GMP (LGPL-3.0-or-later
+# or GPL-2.0-or-later) statically; see "License" in README.md.
+license = "Apache-2.0 AND GPL-2.0-or-later"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Tobias Winkler", email = "tobias.winkler@cs.rwth-aachen.de" },
+    { name = "Lutz Klinkenberg" },
+]
+keywords = ["probabilistic programs", "generating functions", "ginac", "computer algebra"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.urls]
+Repository = "https://github.com/LKlinke/prodigy-ginac-bindings"
+Issues = "https://github.com/LKlinke/prodigy-ginac-bindings/issues"
+Prodigy = "https://github.com/LKlinke/Prodigy"
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
+cmake.build-type = "Release"
+metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
+# The submodules are only needed for the C++ tests; pybind11 comes from build-system.requires.
+sdist.exclude = ["lib/", ".github/", "bugs.txt"]
+
+[tool.scikit-build.cmake.define]
+PRODIGY_GINAC_BUILD_TESTS = false
+PRODIGY_GINAC_BUILD_DEMO = false
+PRODIGY_GINAC_THIRD_PARTY_LICENSES = { env = "PRODIGY_GINAC_THIRD_PARTY_LICENSES", default = "" }
+
+# The version comes from the latest tag v<version>; other tags (e.g. CAV22) are no versions.
+[tool.setuptools_scm]
+git_describe_command = ["git", "describe", "--dirty", "--tags", "--long", "--match", "v[0-9]*"]
+
+[tool.cibuildwheel]
+build = ["cp311-*", "cp312-*", "cp313-*", "cp314-*"]
+skip = ["*-musllinux_*"]
+archs = ["native"]
+build-frontend = "build[uv]"
+test-requires = ["pytest"]
+test-sources = ["python"]
+test-command = "pytest python/test_wheel.py && python python/test.py"
+
+[tool.cibuildwheel.linux]
+manylinux-x86_64-image = "manylinux_2_28"
+manylinux-aarch64-image = "manylinux_2_28"
+before-all = "dnf install -y m4 && bash {package}/scripts/build-deps.sh /opt/prodigy-deps"
+environment = { CMAKE_PREFIX_PATH = "/opt/prodigy-deps", PRODIGY_GINAC_THIRD_PARTY_LICENSES = "/opt/prodigy-deps/share/licenses" }
+
+[tool.cibuildwheel.macos]
+before-all = "MACOSX_DEPLOYMENT_TARGET=11.0 bash {package}/scripts/build-deps.sh $HOME/prodigy-deps"
+environment = { MACOSX_DEPLOYMENT_TARGET = "11.0", CMAKE_PREFIX_PATH = "$HOME/prodigy-deps", PRODIGY_GINAC_THIRD_PARTY_LICENSES = "$HOME/prodigy-deps/share/licenses" }

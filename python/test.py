@@ -1,6 +1,6 @@
-# pygin python bindings demo
+# prodigy_ginac python bindings demo
 
-import pygin as pg
+import prodigy_ginac as pg
 
 FALSE = pg.troolean(0)
 TRUE = pg.troolean(1)

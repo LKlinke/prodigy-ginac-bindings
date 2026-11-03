@@ -10,75 +10,81 @@ using namespace GiNaC;
 namespace prodigy {
 
     Dist DistributionFactory::geometric(const std::string &x, const std::string &p) {
-        EXPECTS(!Dist::isKnownAsParam(x), "given variable " + x + " is a parameter");
+        Dist res;
+
         parser parse;
         ex xExp = parse(x);
         EXPECTS(is_a<symbol>(xExp), "variable of geom distr must be a symbol");
-        std::ostringstream ss;
-        ss << "( 1 - (" << p << ") ) / (1 - (" << x << ") * (" << p << "))";
+        res.registerAsVar(ex_to<symbol>(xExp));
         ex pExp = parse(p);
         if (is_a<symbol>(pExp)) {
-            return Dist{ss.str(), p};
-        } else if (is_a<numeric>(pExp)) {
-            return Dist{ss.str()};
-        } else {
-            EXPECTS(false, "parameter of geom distr must be a number or a symbol");
+            res.registerAsParam(ex_to<possymbol>(pExp));
         }
+        else EXPECTS(pExp.info(info_flags::nonnegative), "parameter " + p + " is either a non-negative number or not a symbol.");
+        ex gf = (pExp) / (1 - (1 - (pExp)) * xExp);
+        res._gf = gf;
+        return res;
     }
 
     Dist DistributionFactory::uniform(const std::string& x, const std::string& a, const std::string& b) {
-        EXPECTS(!Dist::isKnownAsParam(x), "given variable " + x + " was previously declared a parameter");
-        EXPECTS(!Dist::isKnownAsVar(a), "given parameter " + a + " was previously declared a variable");
-        EXPECTS(!Dist::isKnownAsVar(b), "given parameter " + b + " was previously declared a variable");
-        ex xExp = Dist::parseWithKnownSymbs(x);
-        ex aExp = Dist::parseWithKnownSymbs(a);
-        ex bExp = Dist::parseWithKnownSymbs(b);
+        parser pars;
+        ex xExp = pars(x);
+        ex aExp = pars(a);
+        ex bExp = pars(b);
+        Dist res;
         EXPECTS(is_a<symbol>(xExp), "variable of unif distr must be a symbol, got " + x);
+        res.registerAsVar(ex_to<symbol>(xExp));
+
         EXPECTS(is_a<symbol>(aExp) || aExp.info(info_flags::nonnegint), "parameters of unif distr must be a non-neg int or a symbol, got " + a);
         EXPECTS(is_a<symbol>(bExp) || bExp.info(info_flags::nonnegint), "parameters of unif distr must be a non-neg int or a symbol, got " + b);
+
         EXPECTS(!(aExp.info(info_flags::integer) && aExp.info(info_flags::integer)) || ex_to<numeric>(aExp).to_int() <= ex_to<numeric>(bExp).to_int(), "interval [" + a + "," + b + "] is invalid");
-        // register variable/parameters in case we don't know them yet
-        if(is_a<symbol>(aExp) && !Dist::isKnownAsParam(a)) {
-            Dist::registerAsParam(ex_to<symbol>(aExp));
+
+        if(is_a<symbol>(aExp) && is_a<symbol>(bExp)){
+            res.registerAsParam(ex_to<symbol>(aExp));
+            res.registerAsParam(ex_to<symbol>(bExp));
+        } else if (is_a<symbol>(aExp)) {
+            res.registerAsParam(ex_to<symbol>(aExp));
+        } else if (is_a<symbol>(bExp)) {
+            res.registerAsParam(ex_to<symbol>(bExp));
         }
-        if(is_a<symbol>(bExp) && !Dist::isKnownAsParam(b)) {
-            Dist::registerAsParam(ex_to<symbol>(bExp));
-        }
-        if(!Dist::isKnownAsVar(x)) Dist::registerAsVar(ex_to<symbol>(xExp));
         ex gf = pow(xExp, aExp) / (bExp - aExp + 1) * (1 - pow(xExp, bExp - aExp + 1)) / (1 - xExp);
-        return Dist(gf);
+        res._gf = gf;
+        return res;
     }
 
     Dist DistributionFactory::dirac(const std::string &x, const std::string &n) {
-        EXPECTS(!Dist::isKnownAsParam(x), "given variable " + x + " was previously declared a parameter");
-        EXPECTS(!Dist::isKnownAsVar(n), "given parameter " + n + " was previously declared a variable");
-        ex xExp = Dist::parseWithKnownSymbs(x);
-        ex nExp = Dist::parseWithKnownSymbs(n);
+        parser pars;
+        ex xExp = pars(x);
+        ex nExp = pars(n);
         EXPECTS(is_a<symbol>(xExp), "variable of Dirac distr must be a symbol, got " + x);
         EXPECTS(is_a<symbol>(nExp) || nExp.info(info_flags::nonnegint), "parameter of Dirac distribution must be a non-neg int or a symbol, got " + n);
         // register variable/parameters in case we don't know them yet
-        if(is_a<symbol>(nExp) && !Dist::isKnownAsParam(n)) {
-            Dist::registerAsParam(ex_to<symbol>(nExp));
+        Dist result;
+        if(is_a<symbol>(nExp)) {
+            result.registerAsVar(ex_to<symbol>(xExp));
+            result.registerAsParam(ex_to<symbol>(nExp));
         }
-        if(!Dist::isKnownAsVar(x)) Dist::registerAsVar(ex_to<symbol>(xExp));
         ex gf = pow(xExp, nExp);
-        return Dist(gf);
+        result._gf = gf;
+        return result;
     }
 
     Dist DistributionFactory::catalan(const std::string &x, const std::string &p) {
-        EXPECTS(!Dist::isKnownAsParam(x), "given variable " + x + " was previously declared a parameter");
-        EXPECTS(!Dist::isKnownAsVar(p), "given parameter " + p + " was previously declared a variable");
-        ex xExp = Dist::parseWithKnownSymbs(x);
-        ex pExp = Dist::parseWithKnownSymbs(p);
+        parser pars;
+        ex xExp = pars(x);
+        ex pExp = pars(p);
         EXPECTS(is_a<symbol>(xExp), "variable of Catalan distr must be a symbol, got " + x);
         EXPECTS(is_a<symbol>(pExp) || pExp.info(info_flags::positive), "parameter of Catalan distribution must be a positive real or a symbol, got " + p);
-        // register variable/parameters in case we don't know them yet
-        if(is_a<symbol>(pExp) && !Dist::isKnownAsParam(p)) {
-            Dist::registerAsParam(ex_to<symbol>(pExp));
+        
+        Dist res;
+        res.registerAsVar(ex_to<symbol>(xExp));
+        if(is_a<symbol>(pExp)) {
+            res.registerAsParam(ex_to<possymbol>(pExp));
         }
-        if(!Dist::isKnownAsVar(x)) Dist::registerAsVar(ex_to<symbol>(xExp));
         ex gf = (1 - sqrt(1 - 4 * pExp * (1-pExp) * xExp)) / (2 * pExp);
-        return Dist(gf);
+        res._gf = gf;
+        return res;
     }
 
 } // namespace prodigy

@@ -33,7 +33,7 @@ TEST(EquivalenceCheck, geometric) {
     l0 = DistributionFactory::geometric("x", "p") * DistributionFactory::geometric("c", "q");
     l1 = l0.filterEq("x", "1");
     l2 = l1 * DistributionFactory::geometric("c", "1/2");
-    l3 = l2.update("x", "0");
+    l3 = l2.updateVar("x", "0");
     l4 = l3 + (l0 - l1);
     Dist res1 = l4;
 
@@ -52,10 +52,10 @@ TEST(EquivalenceCheck, geometric) {
      */
     l0 = DistributionFactory::geometric("x", "p") * DistributionFactory::geometric("c", "q");
     l1 = l0.filterEq("x", "1");
-    l2 = "1/2" * l1.update("x", "0") + "1/2" * l1.update("c", "c + 1");
+    l2 = "1/2" * l1.updateVar("x", "0") + "1/2" * l1.updateSum("c", "c", "1");
     l3 = l2.filterEq("x", "1");
     l4 = l3 * DistributionFactory::geometric("c", "1/2");
-    l5 = l4.update("x", "0");
+    l5 = l4.updateVar("x", "0");
     l6 = l5 + (l2 - l3);
     l7 = l6 + (l0 - l1);
     Dist res2 = l7;
@@ -64,7 +64,6 @@ TEST(EquivalenceCheck, geometric) {
 }
 
 TEST(EquivalenceCheck, geometricSum) {
-    Dist::resetSymbolCache();
     Dist l0, l1, l2, l3, l4, l5, l6, l7, l8;
 
     /*
@@ -88,9 +87,9 @@ TEST(EquivalenceCheck, geometricSum) {
     l0 = DistributionFactory::geometric("x", "p") * DistributionFactory::geometric("c", "q");
     // l0 = Dist {"1/(1 - p*x)", "p"} * Dist {"1/ (1 - q*c)", "q"};
     l1 = l0.updateIid("tmp", DistributionFactory::geometric("TMP", "1/2"), "x");
-    l2 = l1.update("c", "c + tmp");
-    l3 = l2.update("tmp", "0");
-    l4 = l3.update("x", "0");
+    l2 = l1.updateSum("c", "c", "tmp");
+    l3 = l2.updateVar("tmp", "0");
+    l4 = l3.updateVar("x", "0");
     Dist res1 = l4;
 
     /*
@@ -110,11 +109,11 @@ TEST(EquivalenceCheck, geometricSum) {
     l0 = DistributionFactory::geometric("x", "p") * DistributionFactory::geometric("c", "q");
     // l0 = Dist {"1/(1 - p*x)", "p"} * Dist {"1/ (1 - q*c)", "q"};
     l1 = l0.filterGreater("x", "0");
-    l2 = "1/2" * l1.update("x", "x - 1") + "1/2" * l1.update("c", "c + 1");
+    l2 = "1/2" * l1.updateSubtraction("x", "x", "1") + "1/2" * l1.updateSum("c", "c", "1");
     l3 = l2.updateIid("tmp", DistributionFactory::geometric("TMP", "1/2"), "x");
-    l4 = l3.update("c", "c + tmp");
-    l5 = l4.update("tmp", "0");
-    l6 = l5.update("x", "0");
+    l4 = l3.updateSum("c", "c", "tmp");
+    l5 = l4.updateVar("tmp", "0");
+    l6 = l5.updateVar("x", "0");
     l7 = l6 + (l0 - l1);
     Dist res2 = l7;
 
@@ -122,7 +121,6 @@ TEST(EquivalenceCheck, geometricSum) {
 }
 
 TEST(EquivalenceCheck, randomWalk) {
-    Dist::resetSymbolCache();
     Dist l0, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12, l13, l14, l15, l16;
 
     /*
@@ -151,9 +149,9 @@ TEST(EquivalenceCheck, randomWalk) {
     l0 = Dist {"1/(1 - p*s)", "p"} *  Dist {"1/(1 - q*c)", "q"} * Dist {"1/(1 - r*tmp)", "r"};
     l1 = l0.filterGreater("s", "0");
     l2 = l1.updateIid("tmp", Dist {"(1 - (1-T^2)^(1/2)) / T"}, "s" );
-    l3 = l2.update("c", "c + tmp");
-    l4 = l3.update("tmp", "0");
-    l5 = l4.update("s", "0");
+    l3 = l2.updateSum("c", "c", "tmp");
+    l4 = l3.updateVar("tmp", "0");
+    l5 = l4.updateVar("s", "0");
     l6 = l5 + l0 - l1;
     Dist res1 = l6;
 
@@ -176,14 +174,14 @@ TEST(EquivalenceCheck, randomWalk) {
      */
     l0 = Dist {"1/(1 - p*s)", "p"} *  Dist {"1/(1 - q*c)", "q"} * Dist {"1/(1 - r*tmp)", "r"};
     l1 = l0.filterGreater("s", "0");
-    l2 = "1/2" * l1.update("s", "s + 1") + "1/2" * l1.update("s", "s - 1");
-    l3 = l2.update("c", "c + 1");
-    l4 = l3.update("tmp", "0");
+    l2 = "1/2" * l1.updateSum("s", "s", "1") + "1/2" * l1.updateSubtraction("s", "s", "1");
+    l3 = l2.updateSum("c", "c", "1");
+    l4 = l3.updateVar("tmp", "0");
     l5 = l4.filterGreater("s", "0");
     l6 = l5.updateIid("tmp", Dist {"(1 - (1-T^2)^(1/2)) / T"}, "s" );
-    l7 = l6.update("c", "c + tmp");
-    l8 = l7.update("tmp", "0");
-    l9 = l8.update("s", "0");
+    l7 = l6.updateSum("c", "c", "tmp");
+    l8 = l7.updateVar("tmp", "0");
+    l9 = l8.updateVar("s", "0");
     l10 = l9 + l4 - l5;
     l11 = l10 + l0 - l1;
     Dist res2 = l11;
@@ -192,7 +190,6 @@ TEST(EquivalenceCheck, randomWalk) {
 }
 
 TEST(EquivalenceCheck, trivialIID){
-    Dist::resetSymbolCache();
     Dist l0, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12;
     /*
     * given loop
@@ -218,21 +215,14 @@ TEST(EquivalenceCheck, trivialIID){
      5:   tmp := 0
      6:}
      */
-    cout << "Invariant" << endl;
     l0 = Dist {"1/(1 - p*n)", "p"} *  Dist {"1/(1 - q*m)", "q"} * Dist {"1/(1 - r*t)", "r"};
-    cout << "l0:\t" << l0 << endl;
     l1 = l0.filterGreater("n", "0");
-    cout << "l1:\t" << l1 << endl;
     l2 = l1.updateIid("t", Dist {"1/6 * T * (T^6 - 1) / (T - 1)"}, "n");
-    cout << "l2:\t" << l2 << endl;
-    l3 = l2.update("m", "m+t");
-    cout << "l3:\t" << l3 << endl;
-    l4 = l3.update("n", "0");
-    cout << "l4:\t" << l4 << endl;
-    l5 = l4.update("t", "0");
-    cout << "l5:\t" << l5 << endl;
+    l3 = l2.updateSum("m", "m", "t");
+    l4 = l3.updateVar("n", "0");
+    l5 = l4.updateVar("t", "0");
     Dist res1 = l5 + l0.filterLeq("n", "0");
-    cout << "res1:\t" << res1 << endl;
+
 
     /*
      * guard + body + invariant
@@ -252,18 +242,17 @@ TEST(EquivalenceCheck, trivialIID){
     12:}
      *
      */
-    cout << "Modified Inv" << endl;
     l0 = Dist {"1/(1 - p*n)", "p"} *  Dist {"1/(1 - q*m)", "q"} * Dist {"1/(1 - r*t)", "r"};
     l1 = l0.filterGreater("n", "0");
-    l2 = l1.update("t", "0") * Dist {"1/6 * T * (T^6 - 1) / (T - 1)"};
-    l3 = l2.update("m", "m+t");
-    l4 = l3.update("t", "0");
-    l5 = l4.update("n", "n-1");
+    l2 = l1.updateVar("t", "0") * Dist {"1/6 * t * (t^6 - 1) / (t - 1)"};
+    l3 = l2.updateSum("m", "m", "t");
+    l4 = l3.updateVar("t", "0");
+    l5 = l4.updateSubtraction("n", "n", "1");
     l6 = l5.filterGreater("n", "0");
     l7 = l6.updateIid("t", Dist {"1/6 * T * (T^6 - 1) / (T - 1)"}, "n");
-    l8 = l7.update("m", "m+t");
-    l9 = l8.update("n", "0");
-    l10 = l9.update("t", "0");
+    l8 = l7.updateSum("m", "m", "t");
+    l9 = l8.updateVar("n", "0");
+    l10 = l9.updateVar("t", "0");
     l11 = l10 + l5.filterLeq("n", "0");
     l12 = l11 + l0.filterLeq("n", "0");
     Dist res2 = l12;
@@ -272,7 +261,6 @@ TEST(EquivalenceCheck, trivialIID){
 }
 
 TEST(EquivalenceCheck, dep_bern){
-    Dist::resetSymbolCache();
     Dist l0, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12;
     
     /*
@@ -295,15 +283,14 @@ TEST(EquivalenceCheck, dep_bern){
      7: } else {skip}
      */
     
-    cout << "Invariant" << endl;
     l0 = Dist {"1/(1 - p*n)", "p"} *  Dist {"1/(1 - q*m)", "q"} * Dist {"1/(1 - r*c)", "r"} * Dist {"1/(1-s*t)", "s"};
     l1 = l0.filterGreater("c", "0");
     l2 = l1.updateIid("t", Dist {"1/2 * T + 1/2"}, "c");
-    l3 = l2.update("m", "m+t");
-    l4 = l3.update("n", "n+c");
-    l4 = l4.update("n", "n-t");
-    l5 = l4.update("c", "0");
-    l6 = l5.update("t", "0");
+    l3 = l2.updateSum("m", "m", "t");
+    l4 = l3.updateSum("n", "n", "c");
+    l4 = l4.updateSubtraction("n", "n", "t");
+    l5 = l4.updateVar("c", "0");
+    l6 = l5.updateVar("t", "0");
     l7 = l6 + l0.filterLeq("c", "0");
     Dist res1 = l7;
     
@@ -323,24 +310,21 @@ TEST(EquivalenceCheck, dep_bern){
      12: }
      */
     
-    cout << "Modified Invariant" << endl;
     l0 = Dist {"1/(1 - p*n)", "p"} *  Dist {"1/(1 - q*m)", "q"} * Dist {"1/(1 - r*c)", "r"} * Dist {"1/(1-s*t)", "s"};
     l1 = l0.filterGreater("c", "0");
-    l2 = "1/2" * l1.update("m", "m+1") + "1/2" * l1.update("n", "n+1");
-    l3 = l2.update("c", "c-1");
-    l4 = l3.update("t", "0");
+    l2 = "1/2" * l1.updateSum("m", "m", "1") + "1/2" * l1.updateSum("n", "n", "1");
+    l3 = l2.updateSubtraction("c", "c", "1");
+    l4 = l3.updateVar("t", "0");
     l5 = l4.filterGreater("c", "0");
     l6 = l5.updateIid("t", Dist {"1/2 * T + 1/2"}, "c");
-    l7 = l6.update("m", "m+t");
-    l8 = l7.update("n", "n+c");
-    l8 = l8.update("n", "n-t");
-    l9 = l8.update("c", "0");
-    l10 = l9.update("t", "0");
+    l7 = l6.updateSum("m", "m", "t");
+    l8 = l7.updateSum("n", "n", "c");
+    l8 = l8.updateSubtraction("n", "n", "t");
+    l9 = l8.updateVar("c", "0");
+    l10 = l9.updateVar("t", "0");
     l11 = l10 + l4.filterLeq("c", "0");
     l12 = l11 + l0.filterLeq("c", "0");
     Dist res2 = l12;
-    
-    cout << res1 - res2 << endl;
     
     ASSERT_EQ(res1, res2);
 }

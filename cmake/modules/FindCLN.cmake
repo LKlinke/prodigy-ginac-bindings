@@ -49,6 +49,15 @@ find_library(CLN_LIBRARIES NAMES libcln cln
         ${_cln_LIBRARY_DIRS}
         $ENV{CLN_DIR}/lib)
 
+# A static libcln (as built for the wheels) needs GMP on the link line as well.
+if (CLN_LIBRARIES MATCHES "\\.a$")
+    get_filename_component(_cln_static_dir "${CLN_LIBRARIES}" PATH)
+    find_library(_cln_gmp_library NAMES libgmp.a gmp HINTS ${_cln_static_dir})
+    if (_cln_gmp_library)
+        set(CLN_LIBRARIES ${CLN_LIBRARIES} ${_cln_gmp_library})
+    endif()
+endif()
+
 if (CLN_INCLUDE_DIR)
     _cl_get_version(CLN_VERSION_MAJOR
             CLN_VERSION_MINOR
