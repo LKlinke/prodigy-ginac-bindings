@@ -27,8 +27,8 @@ string toString(const Dist& dist){
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(pygin, m) {
-    m.doc() = "python bindings of pygin - a library for manipulating distributions through generating functions";
+PYBIND11_MODULE(prodigy_ginac, m) {
+    m.doc() = "python bindings of prodigy_ginac - a library for manipulating distributions through generating functions";
 
     py::class_<Dist>(m, "Dist")
             .def(py::init())

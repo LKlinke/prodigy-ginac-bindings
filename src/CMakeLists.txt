@@ -1,7 +1,5 @@
 set(BINARY ${CMAKE_PROJECT_NAME})
 
-add_executable(${BINARY}_demo demo.cpp)
-
 add_library(${BINARY}_lib STATIC
         Dist.h Dist.cpp
         DistributionFactory.h DistributionFactory.cpp
@@ -9,4 +7,7 @@ add_library(${BINARY}_lib STATIC
         Assumptions.h Assumptions.cpp)
 target_link_libraries(${BINARY}_lib PUBLIC ${GINAC_LIBRARIES})
 
-target_link_libraries(${BINARY}_demo PUBLIC ${BINARY}_lib)
+if (PRODIGY_GINAC_BUILD_DEMO)
+    add_executable(${BINARY}_demo demo.cpp)
+    target_link_libraries(${BINARY}_demo PUBLIC ${BINARY}_lib)
+endif()

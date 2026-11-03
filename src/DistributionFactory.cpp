@@ -78,8 +78,8 @@ namespace prodigy {
         EXPECTS(is_a<symbol>(pExp) || pExp.info(info_flags::positive), "parameter of Catalan distribution must be a positive real or a symbol, got " + p);
         
         Dist res;
+        res.registerAsVar(ex_to<symbol>(xExp));
         if(is_a<symbol>(pExp)) {
-            res.registerAsVar(ex_to<symbol>(xExp));
             res.registerAsParam(ex_to<possymbol>(pExp));
         }
         ex gf = (1 - sqrt(1 - 4 * pExp * (1-pExp) * xExp)) / (2 * pExp);
