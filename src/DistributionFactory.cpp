@@ -22,7 +22,7 @@ namespace prodigy {
         }
         else EXPECTS(pExp.info(info_flags::nonnegative), "parameter " + p + " is either a non-negative number or not a symbol.");
         ex gf = (pExp) / (1 - (1 - (pExp)) * xExp);
-        res._gf = gf;
+        res.setGf(gf);
         return res;
     }
 
@@ -49,7 +49,7 @@ namespace prodigy {
             res.registerAsParam(ex_to<symbol>(bExp));
         }
         ex gf = pow(xExp, aExp) / (bExp - aExp + 1) * (1 - pow(xExp, bExp - aExp + 1)) / (1 - xExp);
-        res._gf = gf;
+        res.setGf(gf);
         return res;
     }
 
@@ -66,7 +66,7 @@ namespace prodigy {
             result.registerAsParam(ex_to<symbol>(nExp));
         }
         ex gf = pow(xExp, nExp);
-        result._gf = gf;
+        result.setGf(gf);
         return result;
     }
 
@@ -83,7 +83,7 @@ namespace prodigy {
             res.registerAsParam(ex_to<possymbol>(pExp));
         }
         ex gf = (1 - sqrt(1 - 4 * pExp * (1-pExp) * xExp)) / (2 * pExp);
-        res._gf = gf;
+        res.setGf(gf);
         return res;
     }
 

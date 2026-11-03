@@ -155,7 +155,23 @@ namespace prodigy {
         void registerAsParam(const symbol& p);
         void deregister(const std::string& s);
 
-        explicit Dist(ex gf) : _gf(std::move(gf)) { assumptions = {}; }
+        /*
+         * returns e with every symbol replaced by the registered symbol of the same name
+         * unknown symbols are registered as variables
+         */
+        ex linkSymbs(const ex& e);
+
+        /*
+         * sets the gf to gf, linked to the symbol table (see linkSymbs)
+         * every assignment to _gf goes through this function, so that the gf contains only registered symbols
+         * and variables or parameters of the same name are the same GiNaC symbol
+         */
+        void setGf(const ex& gf);
+
+        /*
+         * returns a distribution with gf 'gf', the symbol table of *this and no assumptions
+         */
+        Dist withGf(const ex& gf) const;
 
     public:
 
@@ -332,7 +348,9 @@ namespace prodigy {
         public:
             CoefficientIterator(Dist dist, symbol var) : _params(std::move(dist._params)), _vars(std::move(dist._vars)), _rest(std::move(dist._gf)), _var(std::move(var)), _n(1) {}
             Dist next();
-            Dist rest() const { return Dist(_rest); }
+            Dist rest() const { return withSymbols(_rest); }
+        private:
+            Dist withSymbols(const ex& gf) const;
         };
         
         
@@ -402,21 +420,8 @@ namespace prodigy {
                 }
             }
 
-            auto rhs_symbs = rhs.getSymbols();
-            auto rhs_gf = rhs._gf;
-
-            for (auto sym : rhs_symbs){
-                if(result.isKnownAsVar(sym.get_name())){
-                    rhs_gf = rhs_gf.subs(sym == result._vars[sym.get_name()]);
-                } else if (result.isKnownAsParam(sym.get_name())){
-                    rhs_gf = rhs_gf.subs(sym == result._params[sym.get_name()]);
-                }
-                else{
-                    std::cout << "this should actually not happen!" << std::endl;
-                }
-            }
-
-            result._gf *= rhs_gf;
+            // links the symbols of rhs to the symbols of the same name in result
+            result.setGf(result._gf * rhs._gf);
             return result; 
         }
 
@@ -438,21 +443,8 @@ namespace prodigy {
                 }
             }
 
-            auto rhs_symbs = rhs.getSymbols();
-            auto rhs_gf = rhs._gf;
-
-            for (auto sym : rhs_symbs){
-                if(result.isKnownAsVar(sym.get_name())){
-                    rhs_gf = rhs_gf.subs(sym == result._vars[sym.get_name()]);
-                } else if (result.isKnownAsParam(sym.get_name())){
-                    rhs_gf = rhs_gf.subs(sym == result._params[sym.get_name()]);
-                }
-                else{
-                    std::cout << "this should actually not happen!" << std::endl;
-                }
-            }
-
-            result._gf += rhs_gf;
+            // links the symbols of rhs to the symbols of the same name in result
+            result.setGf(result._gf + rhs._gf);
             return result; 
         }
 
