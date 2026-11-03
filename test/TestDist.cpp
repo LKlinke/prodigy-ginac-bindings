@@ -118,3 +118,12 @@ TEST(Dist, registeredSymbols) {
     it.next();
     expectLinked(it.rest());
 }
+
+// GiNaC's series does not truncate products of polynomials (issue #6)
+TEST(Dist, filterProductOfPolynomials) {
+    Dist dist("(1+c*a)*(1+c^5)");
+    EXPECT_EQ(dist.filterLess("c", "6"), Dist("1+a*c+c^5"));
+    EXPECT_EQ(dist.filterGreater("c", "5"), Dist("a*c^6"));
+    EXPECT_EQ(dist.filterEq("c", "6"), Dist("a*c^6"));
+    EXPECT_EQ(Dist("(1+c)*(1+c^5)").filterGreater("c", "5"), Dist("c^6"));
+}
