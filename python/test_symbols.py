@@ -91,3 +91,30 @@ def test_iid_shares_parameter_symbol():
 def test_iid_parameter_known_as_variable():
     with pytest.raises(Exception, match="known as variable"):
         pg.Dist("p*x").updateIid("y", pg.Dist("p*n+(1-p)", ["p"]), "x")
+
+
+def test_variables_are_positive():
+    # issue #5: (x^2)^(9/2) = x^9 and sqrt(x^2) = x hold for the power series in a variable x
+    assert pg.Dist("(x^2)^(9/2)") == pg.Dist("x^9")
+    assert pg.Dist("sqrt(x^2)") == pg.Dist("x")
+    assert pg.dirac("x", "n") * pg.Dist("sqrt(y^2)") == pg.Dist("x^n*y", ["n"])
+    # the simplification happens before x -> -x in the arithmetic progression: odd part x, even part 0
+    even, odd = pg.Dist("sqrt(x^2)").arithmetic_progression("x", "2")
+    assert even.is_zero() == pg.troolean.true
+    assert odd == pg.Dist("x")
+
+
+def test_parameters_may_be_negative():
+    assert (pg.Dist("sqrt(a^2)", ["a"]) - pg.Dist("a", ["a"])).is_zero() != pg.troolean.true
+    assert (pg.geometric("x", "a") * pg.Dist("sqrt(a^2)", ["a"]) - pg.geometric("x", "a") * pg.Dist("a", ["a"])) \
+        .is_zero() != pg.troolean.true
+
+
+def test_fresh_variable_is_a_variable():
+    # a fresh variable (a possymbol) was sliced into a plain symbol by getSymbols, so isFiniteSupport took this
+    # infinite gf for finite and update_modulo failed with "can only iterate over terms of a finite polynomial"
+    d = pg.geometric("x", "1/2")
+    v = d.get_fresh_variable()
+    d = d.update_var(v, "x").update_var("x", "0")
+    assert d.update_modulo("z", v, "2", {"x", v}, None, None) == \
+        pg.Dist(f"-(2+{v}*z)*(-2+{v})^(-1)*(2+{v})^(-1)")
