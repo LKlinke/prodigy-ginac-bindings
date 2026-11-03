@@ -12,6 +12,25 @@ using namespace GiNaC;
 
 namespace prodigy {
 
+    /*
+     * returns the sum of all terms of e of degree < order in x, where e is a gf (a power series in x)
+     * GiNaC's series does not truncate products of polynomials, e.g. the series of (1+x)*(1+x^5) to order 3
+     * is the whole product, so we drop the terms of degree >= order ourselves
+     */
+    static ex truncatedSeries(const ex &e, const ex &x, int order) {
+        ex poly = series_to_poly(e.series(x == 0, order));
+        // for a non-expanded polynomial, degree() is an upper bound of the degree
+        if (poly.degree(x) < order) {
+            return poly;
+        }
+        poly = poly.expand();
+        ex res = 0;
+        for (int k = 0; k < order; k++) {
+            res += poly.coeff(x, k) * GiNaC::pow(x, k);
+        }
+        return res;
+    }
+
 /* static (global) portion of Dist */
 
 // initialize static variables of class Dist
@@ -1162,13 +1181,12 @@ namespace prodigy {
         } else {
             xExp = result._vars.at(x);
         }
-        ex series = result._gf.series(xExp, order);
-        result.setGf(series_to_poly(series));
+        result.setGf(truncatedSeries(result._gf, xExp, order));
         return result;
     }
 
     Dist Dist::CoefficientIterator::next() {
-        ex nextTerm = series_to_poly(_rest.series(_var == 0, _n));
+        ex nextTerm = truncatedSeries(_rest, _var, _n);
         _n++;
         _rest = (_rest - nextTerm).normal();
         ex nextCoeff = nextTerm.subs(_var == 1);
