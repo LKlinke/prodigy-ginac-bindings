@@ -301,6 +301,8 @@ namespace prodigy {
         /**
          * creates a vector where at index i, the given variable is congruent
          * i modulo the given modulus
+         * if the gf is rational in var, the parts are computed exactly as rational functions without roots of unity
+         * (via a resultant, see rationalMultisection in Dist.cpp); otherwise var is substituted by exp(2*Pi*I*m/modulus)*var
          */
         std::vector<Dist> arithmeticProgression(const std::string &var, const std::string &modulus) const;
 
