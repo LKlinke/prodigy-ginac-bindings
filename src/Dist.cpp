@@ -32,6 +32,63 @@ namespace prodigy {
         return res;
     }
 
+    /*
+     * multisection of a gf that is a rational function in x: computes the sections f_r = sum_{k = r mod q} [x^k]f x^k,
+     * r = 0..q-1, exactly, without roots of unity (issue #10)
+     *
+     * Let f = P/Q with polynomials P, Q in x, and let w be a primitive q-th root of unity. Then
+     * N(x) = prod_{m=0}^{q-1} Q(w^m x) is, up to sign, the resultant Res_y(Q(y), y^q - x^q), so a polynomial in x^q
+     * whose coefficients lie in the coefficient domain of Q. N/Q = prod_{m=1}^{q-1} Q(w^m x) is a polynomial, hence so
+     * is M = P*N/Q, and f = M/N. Since N(w x) = N(x),
+     *     f_r(x) = 1/q sum_m w^(-m r) f(w^m x) = (1/q sum_m w^(-m r) M(w^m x)) / N(x) = section_r(M)/N,
+     * where section_r(M) collects the terms of M whose degree in x is r modulo q. This is an identity of rational
+     * functions, so the sections are equal to the sections of f as power series.
+     *
+     * Subexpressions that are not rational (e.g. exp(-l) or sqrt(p)) are replaced by temporary symbols first; if one of
+     * them contains x, f is not rational in x and false is returned. false is also returned if the exact division
+     * fails, which cannot happen mathematically; the caller then falls back to the roots of unity.
+     */
+    static bool rationalMultisection(const ex &f, const symbol &x, int q, std::vector<ex> &sections) {
+        exmap repl;
+        const ex rational = f.to_rational(repl);
+        for (const auto &r : repl) {
+            if (r.first.has(x) || r.second.has(x)) {
+                return false;
+            }
+        }
+        const ex nd = rational.normal().numer_denom();
+        const ex P = nd.op(0).expand();
+        const ex Q = nd.op(1).expand();
+        if (!P.is_polynomial(x) || !Q.is_polynomial(x)) {
+            return false;
+        }
+
+        ex N, M;
+        if (!Q.has(x)) {
+            N = Q;
+            M = P;
+        } else {
+            const symbol y;
+            N = resultant(Q.subs(x == y), GiNaC::pow(y, q) - GiNaC::pow(x, q), y).expand();
+            if (!divide((P * N).expand(), Q, M)) {
+                return false;
+            }
+            M = M.expand();
+        }
+
+        const int deg = M.degree(x);
+        std::vector<ex> numerators(q, 0);
+        for (int k = M.ldegree(x); k <= deg; k++) {
+            numerators[k % q] += M.coeff(x, k) * GiNaC::pow(x, k);
+        }
+        sections.clear();
+        sections.reserve(q);
+        for (const ex &numerator : numerators) {
+            sections.push_back((numerator / N).normal().subs(repl));
+        }
+        return true;
+    }
+
 /* static (global) portion of Dist */
 
     std::string Dist::exactDecimals(const std::string &s) {
@@ -575,9 +632,20 @@ namespace prodigy {
         EXPECTS(is_a<symbol>(exVar), "given variable is not a symbol");
         EXPECTS(!isKnownAsParam(var), "given variable is known as a parameter");
 
-        ex root = exp(2 * Pi * I / exMod);
+        const int q = ex_to<numeric>(exMod).to_int();
         std::vector<Dist> res;
-        res.reserve(ex_to<numeric>(exMod).to_int());
+        res.reserve(q);
+
+        std::vector<ex> sections;
+        if (rationalMultisection(_gf, ex_to<symbol>(exVar), q, sections)) {
+            for (const ex &section : sections) {
+                res.push_back(withGf(section));
+            }
+            return res;
+        }
+
+        // the gf is not rational in var: use the roots of unity
+        ex root = exp(2 * Pi * I / exMod);
         for(int rem = 0; rem < exMod; rem++) {
             ex psum = 0;
             for(int m = 0; m < exMod; m++) {

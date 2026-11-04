@@ -64,7 +64,7 @@ archs = ["native"]
 build-frontend = "build[uv]"
 test-requires = ["pytest"]
 test-sources = ["python"]
-test-command = "pytest python/test_wheel.py python/test_symbols.py python/test_filters.py && python python/test.py"
+test-command = "pytest python/test_wheel.py python/test_symbols.py python/test_filters.py python/test_modulo.py && python python/test.py"
 
 [tool.cibuildwheel.linux]
 manylinux-x86_64-image = "manylinux_2_28"
