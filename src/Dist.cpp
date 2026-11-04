@@ -7,6 +7,7 @@
 #include "Dist.h"
 #include "macros.h"
 #include <cassert>
+#include <cctype>
 
 using namespace GiNaC;
 
@@ -33,6 +34,89 @@ namespace prodigy {
 
 /* static (global) portion of Dist */
 
+    std::string Dist::exactDecimals(const std::string &s) {
+        // mirrors the tokenizer of GiNaC's parser (ginac/parser/lexer.cpp):
+        // identifiers are a letter followed by letters, digits and '_', numbers are [0-9.]+ with an optional
+        // exponent [eE][+-]?[0-9]+, and '#' starts a comment until the end of the line
+        const auto isDigit = [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; };
+        const auto isAlpha = [](char c) { return std::isalpha(static_cast<unsigned char>(c)) != 0; };
+        const auto isAlnum = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) != 0; };
+        const long maxExponent = 100000;
+
+        std::string res;
+        res.reserve(s.size());
+        std::size_t i = 0;
+        const std::size_t n = s.size();
+        while (i < n) {
+            const char c = s[i];
+            std::size_t j = i + 1;
+            if (isAlpha(c)) {
+                while (j < n && (isAlnum(s[j]) || s[j] == '_')) j++;
+                res.append(s, i, j - i);
+            } else if (c == '#') {
+                j = s.find_first_of("\n\r", i);
+                if (j == std::string::npos) j = n;
+                res.append(s, i, j - i);
+            } else if (isDigit(c) || c == '.') {
+                std::string digits; // all digits of the mantissa, without the dot
+                std::size_t fracDigits = 0;
+                bool dot = false;
+                for (j = i; j < n && (isDigit(s[j]) || s[j] == '.'); j++) {
+                    if (s[j] == '.') {
+                        if (dot) throw std::invalid_argument("malformed number in '" + s + "'");
+                        dot = true;
+                    } else {
+                        digits += s[j];
+                        if (dot) fracDigits++;
+                    }
+                }
+                if (digits.empty()) throw std::invalid_argument("malformed number in '" + s + "'");
+                bool hasExponent = false;
+                bool negativeExponent = false;
+                std::string expDigits;
+                if (j < n && (s[j] == 'e' || s[j] == 'E')) {
+                    hasExponent = true;
+                    j++;
+                    if (j < n && (s[j] == '+' || s[j] == '-')) {
+                        negativeExponent = s[j] == '-';
+                        j++;
+                    }
+                    while (j < n && isDigit(s[j])) expDigits += s[j++];
+                    if (expDigits.empty()) throw std::invalid_argument("malformed exponent in '" + s + "'");
+                }
+                if (!dot && !hasExponent) {
+                    // integer literals are exact in GiNaC
+                    res.append(s, i, j - i);
+                } else {
+                    expDigits.erase(0, std::min(expDigits.find_first_not_of('0'), expDigits.size()));
+                    if (expDigits.size() > 6 || (!expDigits.empty() && std::stol(expDigits) > maxExponent)) {
+                        throw std::invalid_argument("decimal exponent too large in '" + s + "'");
+                    }
+                    long exponent = expDigits.empty() ? 0 : std::stol(expDigits);
+                    if (negativeExponent) exponent = -exponent;
+                    exponent -= static_cast<long>(fracDigits);
+                    numeric value = numeric(digits.c_str()) * GiNaC::pow(numeric(10), numeric(exponent));
+                    std::ostringstream str;
+                    str << '(' << value << ')';
+                    res += str.str();
+                }
+            } else {
+                res += c;
+            }
+            i = j;
+        }
+        return res;
+    }
+
+    bool Dist::hasInexactNumbers(const ex &e) {
+        for (auto it = e.preorder_begin(); it != e.preorder_end(); ++it) {
+            if (is_a<numeric>(*it) && !ex_to<numeric>(*it).is_crational()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 // initialize static variables of class Dist
 
     std::vector<std::string> Dist::find_symbols(const std::string &s) {
@@ -42,7 +126,7 @@ namespace prodigy {
         std::replace(str.begin(), str.end(), '%', '/');
 
         GiNaC::parser p;
-        ex parsed = p(str);
+        ex parsed = p(exactDecimals(str));
         std::vector<std::string> res;
         for(auto i : p.get_syms()) {
             res.push_back(i.first);
@@ -52,7 +136,7 @@ namespace prodigy {
 
     ex Dist::parse(const std::string &s, str2sym &table, bool unknownAreVariables) {
         parser pars(table);
-        ex e = pars(s); // might throw parse error
+        ex e = pars(exactDecimals(s)); // might throw parse error
         exmap renaming;
         for (const auto &name : pars.get_syms()) {
             if (table.find(name.first) == table.end()) {
@@ -199,7 +283,7 @@ namespace prodigy {
         
         parser pars;
 
-        ex res = pars(expr);
+        ex res = pars(exactDecimals(expr));
         auto syms = pars.get_syms();
 
         lst names;
@@ -355,6 +439,10 @@ namespace prodigy {
 
     troolean Dist::isZero() const {
         // todo look deeper into what is the best way in ginac for testing whether expression is zero
+        // floating-point numbers are rounded, so neither zero nor non-zero is certain
+        if (hasInexactNumbers(_gf)) {
+            return troolean::UNKNOWN;
+        }
         bool ginacThinksIsZero = _gf.normal().expand().is_zero();
         return makeTroolean(ginacThinksIsZero);
     }
@@ -522,7 +610,7 @@ namespace prodigy {
         } else {
             // x is some string, neither a known param nor a known var
             parser pars;
-            ex parsed = pars(x); // might throw parser error
+            ex parsed = pars(exactDecimals(x)); // might throw parser error
             if (is_a<symbol>(parsed)) {
                 // x is a symbol, interpret as trivial var
                 return 0;
