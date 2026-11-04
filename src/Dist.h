@@ -68,7 +68,24 @@ namespace prodigy {
          * substitutions such as x -> -x or x -> exp(2*Pi*I/k)*x then apply to the simplified gf.
          */
         static ex parse(const std::string& s, str2sym& table, bool unknownAreVariables = true);
-        
+
+        /*
+         * rewrites every decimal literal in 's' into an exact rational, e.g. "0.1" -> "(1/10)", "2.5e-3" -> "(1/400)",
+         * "1e20" -> "(100000000000000000000)"; integer literals, identifiers (e.g. "x1", "e", "exp") and comments
+         * are left unchanged
+         * GiNaC's parser reads decimal literals as floating-point numbers with about 17 digits, so equal-looking
+         * but different numbers would compare equal; every string that is handed to GiNaC's parser goes through
+         * this function first
+         * throws std::invalid_argument for malformed literals (e.g. "1.2.3", "1e", ".") and decimal exponents of
+         * absolute value above 100000
+         */
+        static std::string exactDecimals(const std::string& s);
+
+        /*
+         * true iff 'e' contains an inexact (floating-point) number
+         */
+        static bool hasInexactNumbers(const ex& e);
+
         /* constructors */
 
         Dist() = default;
