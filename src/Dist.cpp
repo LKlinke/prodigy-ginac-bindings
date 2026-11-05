@@ -886,7 +886,6 @@ namespace prodigy {
         if(res.isKnownAsVar(sub) && res.isKnownAsVar(subFrom)) {
             if(res.isFiniteSupport() == troolean::TRUE) {
                 for(auto state: res.getTerms()) {
-                    std::cout << state.toString() << std::endl;
                     EXPECTS(state.vals[subFrom] >= state.vals[sub], "result can be negative");
                 }
             }
