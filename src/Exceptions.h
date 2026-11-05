@@ -9,9 +9,16 @@
 
 namespace prodigy {
 
-    class not_implemented_error : std::exception {};
+    // the python bindings translate it into NotImplementedError
+    class not_implemented_error : public std::logic_error {
+    public:
+        using std::logic_error::logic_error;
+    };
 
-    class bad_input_error : std::exception {};
+    class bad_input_error : public std::invalid_argument {
+    public:
+        using std::invalid_argument::invalid_argument;
+    };
 
 }
 

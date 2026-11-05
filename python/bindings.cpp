@@ -30,6 +30,14 @@ namespace py = pybind11;
 PYBIND11_MODULE(prodigy_ginac, m) {
     m.doc() = "python bindings of prodigy_ginac - a library for manipulating distributions through generating functions";
 
+    py::register_exception_translator([](std::exception_ptr p) {
+        try {
+            if (p) std::rethrow_exception(p);
+        } catch (const not_implemented_error &e) {
+            PyErr_SetString(PyExc_NotImplementedError, e.what());
+        }
+    });
+
     py::class_<Dist>(m, "Dist")
             .def(py::init())
             .def(py::init<const string&>())

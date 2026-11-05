@@ -230,10 +230,13 @@ namespace prodigy {
         ex mass(const std::optional<std::set<std::string>> vars = std::optional<std::set<std::string>>()) const;
 
         /*
-         * returns expected value, possibly non-numeric due to params
-         * // todo implement in terms of moment
+         * returns the expected value of a polynomial expression in the variables (e.g. "x + y", "2*x - y/3 + 1",
+         * "x*y^2"), possibly non-numeric due to params; the coefficients may contain params
+         * symbols that are neither variables nor params are variables that are always 0
+         * throws not_implemented_error for expressions that are not polynomial in the variables
+         * and std::invalid_argument if the expression is a single param
          */
-        ex E(const std::string& var) const;
+        ex E(const std::string& expr) const;
 
         /*
          * approximate size of underlying gf representation

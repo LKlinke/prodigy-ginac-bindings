@@ -29,6 +29,80 @@ TEST(Dist, E) {
     ASSERT_EQ(dist.E("x"), 1);
 }
 
+// issue #16: expected values of polynomial expressions in the variables
+TEST(Dist, ESumsAndLinearCombinations) {
+    // x ~ uniform{0, 1, 2}, y ~ Bernoulli(1/4), independent: E[x] = 1, E[y] = 1/4
+    Dist dist("(1+x+x^2)/3 * (3/4+y/4)");
+    ASSERT_EQ(dist.E("x"), 1);
+    ASSERT_EQ(dist.E("y"), GiNaC::numeric(1, 4));
+    ASSERT_EQ(dist.E("x+y"), GiNaC::numeric(5, 4));
+    ASSERT_EQ(dist.E("2*x - 3*y"), GiNaC::numeric(5, 4));
+    ASSERT_EQ(dist.E("x/2 + 1/3*y + 7"), GiNaC::numeric(91, 12));
+    ASSERT_EQ(dist.E("0.5*x + y"), GiNaC::numeric(3, 4));
+    ASSERT_EQ(dist.E("x - x"), 0);
+    ASSERT_EQ(dist.E("5"), 5);
+    ASSERT_EQ(dist.E("-1/3"), GiNaC::numeric(-1, 3));
+}
+
+TEST(Dist, EDependentVariables) {
+    // (x, y) in {(0, 0), (1, 2), (2, 1)} with probabilities 1/2, 1/4, 1/4
+    Dist dist("1/2 + 1/4*x*y^2 + 1/4*x^2*y");
+    ASSERT_EQ(dist.E("x + y"), GiNaC::numeric(3, 2));
+    ASSERT_EQ(dist.E("x*y"), 1);
+    ASSERT_EQ(dist.E("x^2"), GiNaC::numeric(5, 4));
+    ASSERT_EQ(dist.E("(x - y)^2"), GiNaC::numeric(1, 2));
+    ASSERT_EQ(dist.E("x^2*y - 3*x + 1"), GiNaC::numeric(1, 4));
+}
+
+TEST(Dist, EInfiniteSupport) {
+    // x ~ geometric(1/2) and y ~ geometric(1/3) on {0, 1, ...}: E[x] = 1, E[y] = 2, E[x^2] = 3, E[y^2] = 10
+    Dist dist = Fac::geometric("x", "1/2") * Fac::geometric("y", "1/3");
+    ASSERT_EQ(dist.E("x + y"), 3);
+    ASSERT_EQ(dist.E("3*x - y/2"), 2);
+    ASSERT_EQ(dist.E("x*y"), 2);
+    ASSERT_EQ(dist.E("x^2 + y^2"), 13);
+    ASSERT_EQ(dist.E("(x + y)^2"), 17);
+    // the variables are counted in the marginal only: a third variable z does not matter
+    Dist withZ = dist * Dist("1/2 + z/2");
+    ASSERT_EQ(withZ.E("x + y"), 3);
+    ASSERT_EQ(withZ.E("x + y + 2*z"), 4);
+}
+
+TEST(Dist, EParameters) {
+    // x ~ geometric(p): E[x] = (1-p)/p, y ~ Bernoulli(q): E[y] = q
+    Dist dist = Fac::geometric("x", "p") * Dist("1-q+q*y", "q");
+    GiNaC::ex p, q;
+    for (const auto &sym : dist.getSymbols()) {
+        const std::string &name = GiNaC::ex_to<GiNaC::symbol>(sym).get_name();
+        if (name == "p") p = sym;
+        if (name == "q") q = sym;
+    }
+    ASSERT_TRUE(GiNaC::is_a<GiNaC::symbol>(p) && GiNaC::is_a<GiNaC::symbol>(q));
+    EXPECT_TRUE((dist.E("x + y") - ((1 - p) / p + q)).normal().is_zero());
+    EXPECT_TRUE((dist.E("p*x + 2*y") - (1 - p + 2 * q)).normal().is_zero());
+    EXPECT_TRUE((dist.E("x*y") - q * (1 - p) / p).normal().is_zero());
+    EXPECT_TRUE((dist.E("q + 1")  - (q + 1)).normal().is_zero());
+}
+
+TEST(Dist, EUnknownSymbolsAreZero) {
+    Dist dist = Fac::geometric("x", "1/2");
+    ASSERT_EQ(dist.E("z"), 0);
+    ASSERT_EQ(dist.E("x + z"), 1);
+    ASSERT_EQ(dist.E("x + 2*z*x + 1"), 2);
+}
+
+TEST(Dist, EUnsupportedExpressions) {
+    Dist dist = Fac::geometric("x", "1/2") * Fac::geometric("y", "1/2");
+    EXPECT_THROW(dist.E("1/(x+1)"), not_implemented_error);
+    EXPECT_THROW(dist.E("x^(1/2)"), not_implemented_error);
+    EXPECT_THROW(dist.E("exp(x)"), not_implemented_error);
+    EXPECT_THROW(dist.E("x/y"), not_implemented_error);
+    EXPECT_THROW(dist.E("1/z"), not_implemented_error);
+    Dist withParam = Fac::geometric("x", "p");
+    EXPECT_THROW(withParam.E("x^p"), not_implemented_error);
+    EXPECT_THROW(withParam.E("p"), std::invalid_argument);
+}
+
 TEST(Dist, update) {
     Dist dist = Fac::geometric("x", "1/2");
     dist = dist.updateSum("x", "x", "5");
