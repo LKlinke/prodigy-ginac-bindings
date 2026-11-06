@@ -670,22 +670,69 @@ namespace prodigy {
 
     ex Dist::E(const std::string &x) const {
         EXPECTS(!isKnownAsParam(x), "given symbol is considered a parameter");
-        if (isKnownAsVar(x)) {
-            Dist marg = marginal(x);
-            ex res{marg._gf};
-            const auto &xSym = ex_to<symbol>(_vars.at(x));
-            return res.diff(xSym).normal().subs(xSym == 1);
-        } else {
-            // x is some string, neither a known param nor a known var
-            parser pars;
-            ex parsed = pars(exactDecimals(x)); // might throw parser error
-            if (is_a<symbol>(parsed)) {
-                // x is a symbol, interpret as trivial var
-                return 0;
+        // symbols that are neither parameters nor variables of the distribution are variables that are always 0
+        ex parsed = parseWithKnownSymbs(x); // might throw parser error
+        exset symbols;
+        for (auto it = parsed.preorder_begin(); it != parsed.preorder_end(); ++it) {
+            if (is_a<symbol>(*it)) {
+                symbols.insert(*it);
             }
-            // expected value for expressions other than symbols not implemented
-            throw prodigy::not_implemented_error();
         }
+        lst vars, unknown;
+        for (const auto &sym : symbols) {
+            const std::string &name = ex_to<symbol>(sym).get_name();
+            if (!isKnownAsParam(name)) {
+                (isKnownAsVar(name) ? vars : unknown).append(sym);
+            }
+        }
+        lst allVars = vars;
+        for (const auto &u : unknown) {
+            allVars.append(u);
+        }
+        if (!parsed.is_polynomial(allVars) || hasInexactNumbers(parsed)) {
+            throw not_implemented_error("expected value only computable for polynomial expressions in the variables "
+                                        "with exact coefficients, got " + x);
+        }
+        lst zeros;
+        for (size_t i = 0; i < unknown.nops(); i++) {
+            zeros.append(0);
+        }
+        ex poly = parsed.subs(unknown, zeros).expand();
+        if (vars.nops() == 0) {
+            return poly;
+        }
+
+        // E[c * x1^k1 * ... * xn^kn] = c * ((x1 d/dx1)^k1 ... (xn d/dxn)^kn G)(1, ..., 1) for the marginal gf G
+        std::vector<std::string> varNames;
+        for (const auto &v : vars) {
+            varNames.push_back(ex_to<symbol>(v).get_name());
+        }
+        const ex gf = marginal(varNames)._gf;
+        lst ones;
+        for (size_t i = 0; i < vars.nops(); i++) {
+            ones.append(1);
+        }
+        std::vector<ex> terms;
+        if (is_a<add>(poly)) {
+            terms.assign(poly.begin(), poly.end());
+        } else {
+            terms.push_back(poly);
+        }
+        ex res = 0;
+        for (const ex &term : terms) {
+            ex coeff = term;
+            ex moment = gf;
+            for (const auto &v : vars) {
+                const symbol &sym = ex_to<symbol>(v);
+                const int k = coeff.degree(sym);
+                coeff = coeff.coeff(sym, k);
+                for (int i = 0; i < k; i++) {
+                    moment = (sym * moment.diff(sym)).normal();
+                }
+            }
+            res += coeff * moment.subs(vars, ones);
+        }
+        return res.normal();
     }
 
     Dist Dist::updateVar(const std::string &updatedVar, const std::string &assignVar) const {
