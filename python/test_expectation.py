@@ -42,3 +42,17 @@ def test_unsupported_expressions(expr):
     dist = pg.geometric("x", "1/2") * pg.geometric("y", "1/2")
     with pytest.raises(NotImplementedError, match="polynomial"):
         dist.E(expr)
+
+
+# issue #18: symbols that are neither variables nor parameters must raise instead of being treated as 0
+def test_constants_and_variables_still_work():
+    dist = pg.Dist("1/8*(x^3-x^11)/(1-x)")
+    assert dist.E("x") == "13/2"
+    assert dist.E("3") == "3"
+
+
+@pytest.mark.parametrize("expr", ["z", "x+z", "x*z", "2*z*x + x + 1"])
+def test_unknown_symbols(expr):
+    dist = pg.Dist("1/8*(x^3-x^11)/(1-x)")
+    with pytest.raises(ValueError, match="neither a variable nor a parameter"):
+        dist.E(expr)

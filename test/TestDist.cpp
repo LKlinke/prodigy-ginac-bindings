@@ -84,11 +84,21 @@ TEST(Dist, EParameters) {
     EXPECT_TRUE((dist.E("q + 1")  - (q + 1)).normal().is_zero());
 }
 
-TEST(Dist, EUnknownSymbolsAreZero) {
-    Dist dist = Fac::geometric("x", "1/2");
-    ASSERT_EQ(dist.E("z"), 0);
-    ASSERT_EQ(dist.E("x + z"), 1);
-    ASSERT_EQ(dist.E("x + 2*z*x + 1"), 2);
+// issue #18: symbols that are neither variables nor parameters have no known value, E must not treat them as 0
+TEST(Dist, EUnknownSymbols) {
+    // x ~ uniform{3, ..., 10}: E[x] = 13/2
+    Dist dist("1/8*(x^3-x^11)/(1-x)");
+    ASSERT_EQ(dist.E("x"), GiNaC::numeric(13, 2));
+    ASSERT_EQ(dist.E("3"), 3);
+    EXPECT_THROW(dist.E("z"), std::invalid_argument);
+    EXPECT_THROW(dist.E("x + z"), std::invalid_argument);
+    EXPECT_THROW(dist.E("x*z"), std::invalid_argument);
+    EXPECT_THROW(dist.E("x + 2*z*x + 1"), std::invalid_argument);
+    EXPECT_THROW(dist.E("1/z"), std::invalid_argument);
+    // parameters are still allowed as coefficients
+    Dist withParam = Fac::geometric("x", "p");
+    EXPECT_NO_THROW(withParam.E("p*x + 1"));
+    EXPECT_THROW(withParam.E("p*x + z"), std::invalid_argument);
 }
 
 TEST(Dist, EUnsupportedExpressions) {
@@ -97,7 +107,6 @@ TEST(Dist, EUnsupportedExpressions) {
     EXPECT_THROW(dist.E("x^(1/2)"), not_implemented_error);
     EXPECT_THROW(dist.E("exp(x)"), not_implemented_error);
     EXPECT_THROW(dist.E("x/y"), not_implemented_error);
-    EXPECT_THROW(dist.E("1/z"), not_implemented_error);
     Dist withParam = Fac::geometric("x", "p");
     EXPECT_THROW(withParam.E("x^p"), not_implemented_error);
     EXPECT_THROW(withParam.E("p"), std::invalid_argument);
