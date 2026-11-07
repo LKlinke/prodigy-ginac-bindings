@@ -112,6 +112,20 @@ TEST(Dist, EUnsupportedExpressions) {
     EXPECT_THROW(withParam.E("p"), std::invalid_argument);
 }
 
+// issue #20: updates evaluate the gf at x = 1, where it may have a removable singularity
+TEST(Dist, UpdateAtRemovableSingularity) {
+    // x ~ uniform{1, 2, 3}, y = 1, written with the factor (x - 1) not cancelled
+    Dist dist("x*(x^3-1)/(3*(x-1))*y");
+    ASSERT_EQ(dist.mass(), 1);
+    ASSERT_EQ(dist.updateVar("x", "y"), Dist("x*y"));
+    ASSERT_EQ(dist.updateVar("x", "5"), Dist("x^5*y"));
+    ASSERT_EQ(dist.updateSum("x", "y", "2"), Dist("x^3*y"));
+    ASSERT_EQ(dist.updateVar("y", "x"), Dist("(x*y + x^2*y^2 + x^3*y^3)/3"));
+    // a genuine pole at x = 1 still throws
+    Dist pole("x/(1-x)");
+    EXPECT_THROW(pole.updateVar("x", "5"), std::domain_error);
+}
+
 TEST(Dist, update) {
     Dist dist = Fac::geometric("x", "1/2");
     dist = dist.updateSum("x", "x", "5");
