@@ -232,9 +232,9 @@ namespace prodigy {
         /*
          * returns the expected value of a polynomial expression in the variables (e.g. "x + y", "2*x - y/3 + 1",
          * "x*y^2"), possibly non-numeric due to params; the coefficients may contain params
-         * symbols that are neither variables nor params are variables that are always 0
          * throws not_implemented_error for expressions that are not polynomial in the variables
-         * and std::invalid_argument if the expression is a single param
+         * and std::invalid_argument if the expression is a single param or contains a symbol that is neither a
+         * variable nor a param
          */
         ex E(const std::string& expr) const;
 
