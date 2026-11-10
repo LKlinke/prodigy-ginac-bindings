@@ -180,6 +180,9 @@ namespace prodigy {
          */
         ex parseWithKnownSymbs(const std::string& s, bool unknownAreVariables = true) const;
 
+        // "0" if 'operand' is a variable that is not registered (it does not occur in the gf), else 'operand'
+        std::string absentAsZero(const std::string &operand) const;
+
         void registerAllUnknownSymbsAsVars(const ex& e);
         void registerAllUnknownSymbsAsParams(const ex& e);
         void registerAsVar(const symbol& p);
