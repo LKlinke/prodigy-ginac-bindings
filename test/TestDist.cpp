@@ -140,9 +140,29 @@ TEST(Dist, updateVar) {
     EXPECT_ANY_THROW(dist.updateVar("x", "x+123"));
 
     dist = dist.updateVar("y", "x");
+    ASSERT_EQ(dist, Dist {"1/5 * (1+y*x+(y*x)^2+(y*x)^3+(y*x)^4)"});
 
+    // w does not occur in the gf, so it is 0 (issue #22)
     dist = dist.updateVar("y", "w");
-    ASSERT_EQ(dist, Dist {"1/5 * (1+w*x+(w*x)^2+(w*x)^3+(w*x)^4)"});
+    ASSERT_EQ(dist, Fac::uniform("x", "0", "4"));
+}
+
+// issue #22: an operand that does not occur in the gf is 0 in every state, not a new symbol
+TEST(Dist, UpdateWithAbsentVariable) {
+    Dist dist("(1+y+y^2)/3");
+    ASSERT_EQ(dist.updateVar("y", "x"), Dist("1"));
+    ASSERT_EQ(dist.updateVar("x", "z"), dist);
+    ASSERT_EQ(Dist("1/(2-y)").updateVar("y", "z"), Dist("1"));
+    ASSERT_EQ(dist.updateSum("y", "z", "w"), Dist("1"));
+    ASSERT_EQ(dist.updateSum("y", "z", "1"), Dist("y"));
+    ASSERT_EQ(dist.updateSum("y", "y", "z"), dist);
+    ASSERT_EQ(dist.updateProduct("y", "z", "y", {"y", "z"}, true, std::nullopt), Dist("1"));
+    ASSERT_EQ(dist.updateDivision("y", "z", "2", std::nullopt), Dist("1"));
+    ASSERT_EQ(dist.updateModulo("y", "z", "2", {"y", "z"}, true, std::nullopt), Dist("1"));
+    ASSERT_EQ(dist.updatePower("y", "z", "2", std::nullopt), Dist("1"));
+    ASSERT_EQ(dist.updatePower("y", "2", "z", std::nullopt), Dist("y"));
+    // a variable that occurs is copied
+    ASSERT_EQ(Dist("z/(2-y)").updateVar("y", "z"), Dist("z*y"));
 }
 
 TEST(Dist, updateMonus) {

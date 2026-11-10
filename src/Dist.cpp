@@ -754,7 +754,17 @@ namespace prodigy {
         return res.normal();
     }
 
-    Dist Dist::updateVar(const std::string &updatedVar, const std::string &assignVar) const {
+    // A variable that is neither registered nor a parameter does not occur in the gf, so it is 0 in every state.
+    // The updates read such an operand as its value 0 instead of a new symbol (issue #22: `y = x` renamed y to x).
+    std::string Dist::absentAsZero(const std::string &operand) const {
+        if (is_a<symbol>(parseWithKnownSymbs(operand)) && !isSymbKnown(operand)) {
+            return "0";
+        }
+        return operand;
+    }
+
+    Dist Dist::updateVar(const std::string &updatedVar, const std::string &assignVarIn) const {
+        const std::string assignVar = absentAsZero(assignVarIn);
         // basically encoding a skip statement.
         if(updatedVar == assignVar) {
             return *this;
@@ -787,7 +797,9 @@ namespace prodigy {
         return result;
     }
 
-    Dist Dist::updateSum(const std::string &updatedVar, const std::string &firstSummand, const std::string secondSummand) const {
+    Dist Dist::updateSum(const std::string &updatedVar, const std::string &firstSummandIn, const std::string secondSummandIn) const {
+        const std::string firstSummand = absentAsZero(firstSummandIn);
+        const std::string secondSummand = absentAsZero(secondSummandIn);
         EXPECTS(!isKnownAsParam(updatedVar), "'variable' " + updatedVar + " is known as a parameter");
 
         auto exUpdatedVar = parseWithKnownSymbs(updatedVar);
@@ -840,8 +852,10 @@ namespace prodigy {
         }
     }
 
-    Dist Dist::updateProduct(const std::string &updatedVar, const std::string &firstFactor, const std::string &secondFactor, 
+    Dist Dist::updateProduct(const std::string &updatedVar, const std::string &firstFactorIn, const std::string &secondFactorIn,
             const std::set<std::string> &variables, const bool &finite, const std::optional<std::string> &approx) const {
+        const std::string firstFactor = absentAsZero(firstFactorIn);
+        const std::string secondFactor = absentAsZero(secondFactorIn);
         EXPECTS(!isKnownAsParam(updatedVar), "'variable' " + updatedVar + " is known as a parameter");
         EXPECTS(!isKnownAsParam(firstFactor) && !isKnownAsParam(secondFactor), "cannot perform multiplication of parameters");
        
@@ -933,7 +947,9 @@ namespace prodigy {
         }
     }
 
-    Dist Dist::updateSubtraction(const std::string updatedVar, const std::string subFrom, const std::string sub) const {
+    Dist Dist::updateSubtraction(const std::string updatedVar, const std::string subFromIn, const std::string subIn) const {
+        const std::string subFrom = absentAsZero(subFromIn);
+        const std::string sub = absentAsZero(subIn);
         EXPECTS(!isKnownAsParam(subFrom), "cannot subtract from parameter " + subFrom);
         EXPECTS(!isKnownAsParam(sub), "cannot subtract a parameter " + sub);
 
@@ -1000,8 +1016,10 @@ namespace prodigy {
             
     }
 
-    Dist Dist::updateModulo(const std::string &updatedVar, const std::string &left, const std::string &right, 
+    Dist Dist::updateModulo(const std::string &updatedVar, const std::string &leftIn, const std::string &rightIn,
             const std::set<std::string> &variables, const std::optional<bool> &finite, const std::optional<std::string> &approx) const {
+        const std::string left = absentAsZero(leftIn);
+        const std::string right = absentAsZero(rightIn);
         EXPECTS(!isKnownAsParam(updatedVar), "'variable' " + updatedVar + " is known as a parameter");
         EXPECTS(!isKnownAsParam(left) && !isKnownAsParam(right), "cannot perform modulo of parameters " + left + " " + right);
         
@@ -1079,7 +1097,9 @@ namespace prodigy {
         }
     }
 
-    Dist Dist::updateDivision(const std::string &updatedVar, const std::string &numerator, const std::string &denominator, const std::optional<std::string> &approx) const {
+    Dist Dist::updateDivision(const std::string &updatedVar, const std::string &numeratorIn, const std::string &denominatorIn, const std::optional<std::string> &approx) const {
+        const std::string numerator = absentAsZero(numeratorIn);
+        const std::string denominator = absentAsZero(denominatorIn);
         EXPECTS(!isKnownAsParam(updatedVar), "'variable' " + updatedVar + " is known as a parameter");
         EXPECTS(!isKnownAsParam(numerator) && !isKnownAsParam(denominator), "cannot perform division of parameters " + numerator + " " + denominator);
         auto exUpdatedVar = parseWithKnownSymbs(updatedVar);
@@ -1164,7 +1184,9 @@ namespace prodigy {
         return result;
     }
 
-    Dist Dist::updatePower(const std::string &updatedVar, const std::string &base, const std::string &exp, const std::optional<std::string> &approx) const {
+    Dist Dist::updatePower(const std::string &updatedVar, const std::string &baseIn, const std::string &expIn, const std::optional<std::string> &approx) const {
+        const std::string base = absentAsZero(baseIn);
+        const std::string exp = absentAsZero(expIn);
         EXPECTS(!isKnownAsParam(updatedVar), "'variable' " + updatedVar + " is known as a parameter");
         EXPECTS(!isKnownAsParam(base) && !isKnownAsParam(exp), "cannot perform exponentiation of parameters " + base + " " + exp);
         auto exUpdatedVar = parseWithKnownSymbs(updatedVar);
@@ -1238,7 +1260,9 @@ namespace prodigy {
         return result;
     }
 
-    Dist Dist::updateRoot(const std::string &updatedVar, const std::string &radicand, const std::string &index, const std::optional<std::string> &approx) const {
+    Dist Dist::updateRoot(const std::string &updatedVar, const std::string &radicandIn, const std::string &indexIn, const std::optional<std::string> &approx) const {
+        const std::string radicand = absentAsZero(radicandIn);
+        const std::string index = absentAsZero(indexIn);
         EXPECTS(!isKnownAsParam(updatedVar), "lhs is known as a parameter");
         EXPECTS(is_a<symbol>(parseWithKnownSymbs(updatedVar)), "lhs is not a symbol");
         EXPECTS(!isKnownAsParam(radicand) && !isKnownAsParam(index), "cannot perform exponentiation of parameters");
