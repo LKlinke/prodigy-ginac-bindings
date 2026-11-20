@@ -636,17 +636,39 @@ namespace prodigy {
 
         ex poly = normal.expand().collect(vars, true);
         auto nops = poly.nops();
-        std::vector<Dist::State> res;
-        res.reserve(nops);
+        std::vector<Dist::State> terms;
+        terms.reserve(nops);
         if(!is_a<add>(poly)) {
-            res.push_back(handleProduct(poly));
+            terms.push_back(handleProduct(poly));
         } else {
             for(auto i = 0; i < nops; i++) {
                 ex term = poly.op(i);
-                res.push_back(handleProduct(term));
+                terms.push_back(handleProduct(term));
             }
         }
-        return res;
+        // collect() leaves the terms without variables uncollected if the coefficients contain parameters
+        // (p*x + 1 - p gives 1 and -p for x = 0): one state per monomial, with the sum of its coefficients
+        std::vector<Dist::State> res;
+        res.reserve(terms.size());
+        std::map<std::map<std::string, int>, size_t> index;
+        for(auto &state : terms) {
+            auto found = index.find(state.vals);
+            if(found == index.end()) {
+                index.emplace(state.vals, res.size());
+                res.push_back(state);
+            } else {
+                res[found->second].prob += state.prob;
+            }
+        }
+        std::vector<Dist::State> nonzero;
+        nonzero.reserve(res.size());
+        for(auto &state : res) {
+            state.prob = state.prob.expand();
+            if(!state.prob.is_zero()) {
+                nonzero.push_back(state);
+            }
+        }
+        return nonzero;
     }
 
     std::vector<Dist> Dist::arithmeticProgression(const std::string &var, const std::string &modulus) const {

@@ -155,7 +155,8 @@ namespace prodigy {
 
             std::string toString() const {
                 std::stringstream res;
-                res << prob;
+                // a coefficient with parameters is a sum, e.g. 1/2-1/2*p: it is one factor of the term
+                res << '(' << prob << ')';
                 for(auto item : vals) {
                     res << '*' << item.first << '^' << item.second;
                 }
